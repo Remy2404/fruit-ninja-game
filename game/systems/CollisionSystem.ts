@@ -196,6 +196,7 @@ export class CollisionSystem {
     const mode = store.mode;
 
     if (mode === 'classic') {
+      useGameStore.setState({ endReason: 'bomb' });
       store.endGame();
     } else if (mode === 'arcade') {
       store.addScore(-10);

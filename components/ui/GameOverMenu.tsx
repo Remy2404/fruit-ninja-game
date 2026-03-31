@@ -10,11 +10,14 @@ import {
   Leaf,
   Check,
   Star,
+  Trophy,
+  Timer,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
 import { useAchievementStore } from '../../store/useAchievementStore';
 import { ACHIEVEMENT_META } from './achievementConfig';
+import type { GameMode, GameEndReason } from '../../store/useGameStore';
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -51,10 +54,57 @@ function StatCard({ icon: Icon, iconColor, label, value }: StatCardProps) {
   );
 }
 
+// Maps every possible (mode × endReason) combination to a distinct visual identity.
+function resolveEndState(mode: GameMode, reason: GameEndReason) {
+  // Timer ran out in Zen or Arcade → the player completed the round
+  if (reason === 'timeout' && (mode === 'zen' || mode === 'arcade')) {
+    return {
+      icon: Trophy,
+      iconBg: 'rgba(255,215,9,0.12)',
+      iconBorder: 'rgba(255,215,9,0.30)',
+      iconGlow: 'rgba(255,215,9,0.18)',
+      iconColor: '#ffd709',
+      heading: mode === 'zen' ? 'Zen Complete' : 'Time\'s Up!',
+      headingGradient: 'linear-gradient(135deg, #ffd709, #ff9f4a)',
+      topGlow: 'linear-gradient(to right, transparent, #ffd709, transparent)',
+      isWin: true,
+    };
+  }
+
+  // Bomb killed the player in Classic
+  if (reason === 'bomb') {
+    return {
+      icon: Bomb,
+      iconBg: 'rgba(255,50,50,0.12)',
+      iconBorder: 'rgba(255,50,50,0.28)',
+      iconGlow: 'rgba(255,50,50,0.18)',
+      iconColor: '#ff7162',
+      heading: 'KABOOM!',
+      headingGradient: 'linear-gradient(135deg, #ff7162, #ff9f4a)',
+      topGlow: 'linear-gradient(to right, transparent, #ff7162, transparent)',
+      isWin: false,
+    };
+  }
+
+  // Default: lives ran out
+  return {
+    icon: Skull,
+    iconBg: 'rgba(255,60,60,0.12)',
+    iconBorder: 'rgba(255,60,60,0.22)',
+    iconGlow: 'rgba(255,60,60,0.15)',
+    iconColor: '#ff7162',
+    heading: 'Game Over',
+    headingGradient: 'linear-gradient(135deg, #ff9f4a, #ffd709)',
+    topGlow: 'linear-gradient(to right, transparent, #ff9f4a, transparent)',
+    isWin: false,
+  };
+}
+
 export function GameOverMenu() {
   const {
     score,
     mode,
+    endReason,
     bestScoreClassic,
     bestScoreArcade,
     bestScoreZen,
@@ -74,6 +124,9 @@ export function GameOverMenu() {
   const total = fruitsSliced + sliceMisses;
   const accuracy = total > 0 ? Math.round((fruitsSliced / total) * 100) : 100;
   const isNewBest = score >= bestScore && score > 0;
+
+  const end = resolveEndState(mode, endReason);
+  const EndIcon = end.icon;
 
   // End-game achievement check (precision, flawless, zen_master, etc.)
   useEffect(() => {
@@ -116,13 +169,13 @@ export function GameOverMenu() {
             backdropFilter: 'blur(28px)',
             WebkitBackdropFilter: 'blur(28px)',
             border: '1px solid rgba(255,255,255,0.06)',
-            boxShadow: '0 0 60px rgba(255, 159, 74, 0.1), 0 24px 64px rgba(0,0,0,0.7)',
+            boxShadow: `0 0 60px ${end.iconGlow}, 0 24px 64px rgba(0,0,0,0.7)`,
           }}
         >
-          {/* Top glow accent */}
+          {/* Top glow accent — color-matched per end state */}
           <div
             className="absolute top-0 left-1/4 right-1/4 h-px rounded-full"
-            style={{ background: 'linear-gradient(to right, transparent, #ff9f4a, transparent)' }}
+            style={{ background: end.topGlow }}
           />
 
           {/* Title */}
@@ -135,23 +188,23 @@ export function GameOverMenu() {
             <div
               className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3"
               style={{
-                background: 'rgba(255,60,60,0.12)',
-                border: '1px solid rgba(255,60,60,0.22)',
-                boxShadow: '0 0 24px rgba(255,60,60,0.15)',
+                background: end.iconBg,
+                border: `1px solid ${end.iconBorder}`,
+                boxShadow: `0 0 24px ${end.iconGlow}`,
               }}
             >
-              <Skull size={28} strokeWidth={1.6} style={{ color: '#ff7162' }} />
+              <EndIcon size={28} strokeWidth={1.6} style={{ color: end.iconColor }} />
             </div>
             <h1
               className="text-3xl font-black uppercase tracking-widest"
               style={{
-                background: 'linear-gradient(135deg, #ff9f4a, #ffd709)',
+                background: end.headingGradient,
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
               }}
             >
-              Game Over
+              {end.heading}
             </h1>
           </motion.div>
 
@@ -205,10 +258,12 @@ export function GameOverMenu() {
             transition={{ delay: 0.35 }}
           >
             <StatCard icon={Swords} iconColor="#ff9f4a" label="Sliced" value={String(fruitsSliced)} />
-            {mode !== 'zen' ? (
-              <StatCard icon={Bomb} iconColor="#ff7162" label="Dodged" value={String(bombsDodged)} />
-            ) : (
+            {mode === 'zen' ? (
               <StatCard icon={Leaf} iconColor="#4ade80" label="No Bombs" value="Zen" />
+            ) : mode === 'arcade' ? (
+              <StatCard icon={Timer} iconColor="#38bdf8" label="Mode" value="Arcade" />
+            ) : (
+              <StatCard icon={Bomb} iconColor="#ff7162" label="Dodged" value={String(bombsDodged)} />
             )}
             <StatCard icon={Target} iconColor="#38bdf8" label="Accuracy" value={`${accuracy}%`} />
           </motion.div>
@@ -279,7 +334,7 @@ export function GameOverMenu() {
                 letterSpacing: '0.08em',
               }}
             >
-              Try Again
+              {end.isWin ? 'Play Again' : 'Try Again'}
             </button>
 
             <button

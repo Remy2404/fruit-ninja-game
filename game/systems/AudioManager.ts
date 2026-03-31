@@ -1,126 +1,74 @@
+import bombOgg from '../../src/soundData/bomb_explode_ogg';
+import bombMp3 from '../../src/soundData/bomb_explode_mp3';
+import splatterOgg from '../../src/soundData/splatter_ogg';
+import splatterMp3 from '../../src/soundData/splatter_mp3';
+import throwOgg from '../../src/soundData/throw_fruit_ogg';
+import throwMp3 from '../../src/soundData/throw_fruit_mp3';
+
 import { Howl } from 'howler';
 import { useGameStore } from '../../store/useGameStore';
 
 type SoundId = 'slice' | 'splat' | 'bomb' | 'combo' | 'miss' | 'gameover' | 'whoosh' | 'start';
 
-const SOUND_POOL_SIZES: Partial<Record<SoundId, number>> = {
-  slice: 4,
-  splat: 3,
-  whoosh: 2,
-};
+type HowlConfig = ConstructorParameters<typeof Howl>[0];
 
 class AudioManager {
   private sounds = new Map<SoundId, Howl>();
-  private isUnlocked = false;
 
-  constructor() {
-    this.createSounds();
-    this.setupUnlock();
+  private getSound(id: SoundId): Howl {
+    if (!this.sounds.has(id)) {
+      this.sounds.set(id, new Howl(this.buildConfig(id)));
+    }
+    return this.sounds.get(id)!;
   }
 
-  private createSounds() {
-    this.sounds.set(
-      'slice',
-      new Howl({
-        src: [this.generateSliceDataUri()],
-        volume: 0.5,
-        pool: SOUND_POOL_SIZES.slice,
-      }),
-    );
-
-    this.sounds.set(
-      'splat',
-      new Howl({
-        src: [this.generateSplatDataUri()],
-        volume: 0.35,
-        pool: SOUND_POOL_SIZES.splat,
-      }),
-    );
-
-    this.sounds.set(
-      'bomb',
-      new Howl({
-        src: [this.generateBombDataUri()],
-        volume: 0.6,
-      }),
-    );
-
-    this.sounds.set(
-      'combo',
-      new Howl({
-        src: [this.generateComboDataUri()],
-        volume: 0.5,
-      }),
-    );
-
-    this.sounds.set(
-      'miss',
-      new Howl({
-        src: [this.generateMissDataUri()],
-        volume: 0.4,
-      }),
-    );
-
-    this.sounds.set(
-      'gameover',
-      new Howl({
-        src: [this.generateGameOverDataUri()],
-        volume: 0.5,
-      }),
-    );
-
-    this.sounds.set(
-      'whoosh',
-      new Howl({
-        src: [this.generateWhooshDataUri()],
-        volume: 0.25,
-        pool: SOUND_POOL_SIZES.whoosh,
-      }),
-    );
-
-    this.sounds.set(
-      'start',
-      new Howl({
-        src: [this.generateStartDataUri()],
-        volume: 0.4,
-      }),
-    );
-  }
-
-  private setupUnlock() {
-    const unlock = () => {
-      if (this.isUnlocked) return;
-      this.isUnlocked = true;
-      document.removeEventListener('pointerdown', unlock);
-      document.removeEventListener('touchstart', unlock);
-      document.removeEventListener('keydown', unlock);
-    };
-    document.addEventListener('pointerdown', unlock, { once: true });
-    document.addEventListener('touchstart', unlock, { once: true });
-    document.addEventListener('keydown', unlock, { once: true });
-  }
-
-  public play(id: SoundId) {
-    if (!useGameStore.getState().soundEnabled) return;
-    const sound = this.sounds.get(id);
-    if (sound) {
-      sound.play();
+  private buildConfig(id: SoundId): HowlConfig {
+    switch (id) {
+      case 'slice':
+        return { src: [splatterOgg, splatterMp3], volume: 0.55, pool: 4 };
+      case 'splat':
+        return { src: [splatterOgg, splatterMp3], volume: 0.3, rate: 0.85, pool: 3 };
+      case 'bomb':
+        return { src: [bombOgg, bombMp3], volume: 0.9 };
+      case 'whoosh':
+        return { src: [throwOgg, throwMp3], volume: 0.3, pool: 2 };
+      case 'combo':
+        return { src: [this.generateComboDataUri()], volume: 0.5 };
+      case 'miss':
+        return { src: [this.generateMissDataUri()], volume: 0.4 };
+      case 'gameover':
+        return { src: [this.generateGameOverDataUri()], volume: 0.5 };
+      case 'start':
+        return { src: [this.generateStartDataUri()], volume: 0.4 };
     }
   }
 
-  public playPitchShifted(id: SoundId, pitchMin = 0.9, pitchMax = 1.1) {
+  public play(id: SoundId): void {
     if (!useGameStore.getState().soundEnabled) return;
-    const sound = this.sounds.get(id);
-    if (sound) {
-      const playId = sound.play();
-      sound.rate(pitchMin + Math.random() * (pitchMax - pitchMin), playId);
+    this.getSound(id).play();
+    if (id === 'bomb') {
+      this.vibrate();
     }
   }
 
-  public destroy() {
+  public playPitchShifted(id: SoundId, pitchMin = 0.9, pitchMax = 1.1): void {
+    if (!useGameStore.getState().soundEnabled) return;
+    const sound = this.getSound(id);
+    const playId = sound.play();
+    sound.rate(pitchMin + Math.random() * (pitchMax - pitchMin), playId);
+  }
+
+  public vibrate(): void {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate([120, 60, 80]);
+    }
+  }
+
+  public destroy(): void {
     this.sounds.forEach((s) => s.unload());
     this.sounds.clear();
   }
+
 
   private renderTone(
     sampleRate: number,
@@ -172,33 +120,6 @@ class AudioManager {
     return 'data:audio/wav;base64,' + btoa(binary);
   }
 
-  private generateSliceDataUri(): string {
-    return this.renderTone(22050, 0.12, (t, _i, total) => {
-      const env = 1 - (_i / total);
-      const freq = 800 + t * 4000;
-      return Math.sin(2 * Math.PI * freq * t) * env * 0.6 +
-        (Math.random() * 2 - 1) * env * 0.3;
-    });
-  }
-
-  private generateSplatDataUri(): string {
-    return this.renderTone(22050, 0.18, (t, _i, total) => {
-      const env = Math.pow(1 - _i / total, 1.5);
-      return (Math.random() * 2 - 1) * env * 0.7 +
-        Math.sin(2 * Math.PI * 120 * t) * env * 0.3;
-    });
-  }
-
-  private generateBombDataUri(): string {
-    return this.renderTone(22050, 0.5, (t, _i, total) => {
-      const env = Math.pow(1 - _i / total, 2);
-      const rumble = Math.sin(2 * Math.PI * 60 * t) * 0.5;
-      const crack = Math.sin(2 * Math.PI * 200 * t * (1 - t * 2)) * 0.3;
-      const noise = (Math.random() * 2 - 1) * 0.4;
-      return (rumble + crack + noise) * env;
-    });
-  }
-
   private generateComboDataUri(): string {
     return this.renderTone(22050, 0.3, (t, _i, total) => {
       const env = 1 - _i / total;
@@ -224,13 +145,6 @@ class AudioManager {
       const f2 = Math.sin(2 * Math.PI * 165 * t);
       const f3 = Math.sin(2 * Math.PI * 110 * t) * (t > 0.3 ? 1 : 0);
       return (f1 * 0.3 + f2 * 0.3 + f3 * 0.4) * env * 0.6;
-    });
-  }
-
-  private generateWhooshDataUri(): string {
-    return this.renderTone(22050, 0.15, (t, _i, total) => {
-      const env = Math.sin(Math.PI * _i / total);
-      return (Math.random() * 2 - 1) * env * 0.3;
     });
   }
 

@@ -3,10 +3,12 @@ import { persist } from 'zustand/middleware';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover';
 export type GameMode = 'classic' | 'arcade' | 'zen';
+export type GameEndReason = 'lives' | 'bomb' | 'timeout';
 
 export interface GameStore {
   status: GameState;
   mode: GameMode;
+  endReason: GameEndReason;
   score: number;
   lives: number;
   combo: number;
@@ -61,6 +63,7 @@ export const useGameStore = create<GameStore>()(
     (set, get) => ({
       status: 'menu',
       mode: 'classic',
+      endReason: 'timeout' as GameEndReason,
       score: 0,
       lives: 3,
       combo: 0,
@@ -108,7 +111,10 @@ export const useGameStore = create<GameStore>()(
         set((state) => {
           const newLives = state.lives - 1;
           if (newLives <= 0) {
-            setTimeout(() => get().endGame(), 0);
+            setTimeout(() => {
+              set({ endReason: 'lives' });
+              get().endGame();
+            }, 0);
             return { lives: 0 };
           }
           return { lives: newLives };
@@ -177,6 +183,7 @@ export const useGameStore = create<GameStore>()(
           streakCount: 0,
           streakMultiplier: 1,
           lastSliceTime: 0,
+          endReason: 'timeout',
         });
       },
 
@@ -186,6 +193,15 @@ export const useGameStore = create<GameStore>()(
       endGame: () => {
         const state = get();
         const updates: Partial<GameStore> = { status: 'gameover' };
+
+        // Infer reason if not already set by the caller (e.g. loseLife sets 'lives').
+        // Bomb hits call endGame() directly via CollisionSystem, so we detect them by
+        // checking whether the current endReason was already stamped as 'bomb'.
+        // Timer expiry in Zen/Arcade is the remaining case.
+        if (state.endReason !== 'lives' && state.endReason !== 'bomb') {
+          updates.endReason =
+            state.mode === 'classic' ? 'lives' : 'timeout';
+        }
 
         if (state.mode === 'classic' && state.score > state.bestScoreClassic) {
           updates.bestScoreClassic = state.score;
