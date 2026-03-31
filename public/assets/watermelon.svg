@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="wm" cx="40%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#5cbf2a"/>
+      <stop offset="60%" stop-color="#3a9c1e"/>
+      <stop offset="100%" stop-color="#1d6b0f"/>
+    </radialGradient>
+    <radialGradient id="wmShine" cx="30%" cy="25%" r="30%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="52" r="44" fill="url(#wm)"/>
+  <path d="M18 20Q38 52 18 84" stroke="#145a08" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <path d="M36 12Q50 52 36 92" stroke="#145a08" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <path d="M54 10Q68 52 54 94" stroke="#145a08" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <path d="M72 16Q58 52 72 88" stroke="#145a08" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.6"/>
+  <ellipse cx="50" cy="12" rx="6" ry="4" fill="#3a9c1e"/>
+  <path d="M50 8 Q52 2 56 0" stroke="#5a3a1a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <circle cx="50" cy="52" r="44" fill="url(#wmShine)"/>
+</svg>

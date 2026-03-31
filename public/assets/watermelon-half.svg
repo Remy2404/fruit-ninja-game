@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="wmhGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ff3355"/>
+      <stop offset="60%" stop-color="#ee2244"/>
+      <stop offset="85%" stop-color="#cc1133"/>
+      <stop offset="100%" stop-color="#3a9c1e"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="44" fill="url(#wmhGrad)"/>
+  <!-- Seeds -->
+  <ellipse cx="38" cy="40" rx="3" ry="2" fill="#222" transform="rotate(-20,38,40)"/>
+  <ellipse cx="55" cy="35" rx="3" ry="2" fill="#222" transform="rotate(15,55,35)"/>
+  <ellipse cx="42" cy="55" rx="3" ry="2" fill="#222" transform="rotate(-10,42,55)"/>
+  <ellipse cx="60" cy="52" rx="3" ry="2" fill="#222" transform="rotate(25,60,52)"/>
+  <ellipse cx="48" cy="65" rx="3" ry="2" fill="#222" transform="rotate(5,48,65)"/>
+  <ellipse cx="35" cy="48" rx="2.5" ry="1.8" fill="#222" transform="rotate(-30,35,48)"/>
+  <ellipse cx="62" cy="44" rx="2.5" ry="1.8" fill="#222" transform="rotate(10,62,44)"/>
+</svg>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="ahGrad" cx="50%" cy="45%" r="50%">
+      <stop offset="0%" stop-color="#fffde0"/>
+      <stop offset="70%" stop-color="#f5eebb"/>
+      <stop offset="100%" stop-color="#cc1111"/>
+    </radialGradient>
+  </defs>
+  <path d="M50 10 C25 10 5 35 5 58 C5 82 25 95 38 95 C44 95 47 90 50 90 C53 90 56 95 62 95 C75 95 95 82 95 58 C95 35 75 10 50 10Z" fill="url(#ahGrad)"/>
+  <!-- Core -->
+  <ellipse cx="50" cy="55" rx="8" ry="18" fill="#f0e0a0" opacity="0.6"/>
+  <ellipse cx="48" cy="50" rx="2" ry="3" fill="#5a3a1a" transform="rotate(-10,48,50)"/>
+  <ellipse cx="52" cy="58" rx="2" ry="3" fill="#5a3a1a" transform="rotate(10,52,58)"/>
+</svg>

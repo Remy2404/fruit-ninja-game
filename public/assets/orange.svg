@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="orangeGrad" cx="40%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#ffaa33"/>
+      <stop offset="55%" stop-color="#ff8800"/>
+      <stop offset="100%" stop-color="#cc5500"/>
+    </radialGradient>
+    <radialGradient id="orangeShine" cx="32%" cy="28%" r="22%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="dimples" width="8" height="8" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="0.8" fill="#cc5500" opacity="0.15"/>
+    </pattern>
+  </defs>
+  <circle cx="50" cy="52" r="43" fill="url(#orangeGrad)"/>
+  <circle cx="50" cy="52" r="43" fill="url(#dimples)"/>
+  <circle cx="50" cy="52" r="43" fill="url(#orangeShine)"/>
+  <ellipse cx="50" cy="11" rx="5" ry="3" fill="#66aa22"/>
+  <path d="M50 8 Q48 2 44 0" stroke="#4a8818" stroke-width="2" fill="none" stroke-linecap="round"/>
+</svg>

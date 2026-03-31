@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="pineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e8a020"/>
+      <stop offset="50%" stop-color="#cc8810"/>
+      <stop offset="100%" stop-color="#996600"/>
+    </linearGradient>
+  </defs>
+  <!-- Crown leaves -->
+  <path d="M50 25 L42 5 L48 22" fill="#3a8c1e"/>
+  <path d="M50 25 L55 2 L52 22" fill="#4aad2b"/>
+  <path d="M50 25 L35 10 L45 23" fill="#2d7015"/>
+  <path d="M50 25 L65 10 L55 23" fill="#2d7015"/>
+  <path d="M50 25 L28 18 L42 24" fill="#246010" opacity="0.8"/>
+  <path d="M50 25 L72 18 L58 24" fill="#246010" opacity="0.8"/>
+  <!-- Body -->
+  <ellipse cx="50" cy="60" rx="28" ry="35" fill="url(#pineGrad)"/>
+  <!-- Cross-hatch pattern -->
+  <path d="M25 45 L75 75 M30 40 L75 68 M35 35 L78 60 M22 52 L72 82 M22 60 L68 88" stroke="#996600" stroke-width="1" opacity="0.4" fill="none"/>
+  <path d="M75 45 L25 75 M70 40 L25 68 M65 35 L22 60 M78 52 L28 82 M78 60 L32 88" stroke="#996600" stroke-width="1" opacity="0.4" fill="none"/>
+  <!-- Shine -->
+  <ellipse cx="42" cy="50" rx="10" ry="15" fill="#ffffff" opacity="0.1"/>
+</svg>

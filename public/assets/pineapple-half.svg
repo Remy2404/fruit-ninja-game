@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="phGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff8aa"/>
+      <stop offset="60%" stop-color="#ffe866"/>
+      <stop offset="100%" stop-color="#cc8810"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="42" fill="url(#phGrad)"/>
+  <circle cx="50" cy="50" r="8" fill="#ffee88" opacity="0.5"/>
+  <!-- Radial lines -->
+  <line x1="50" y1="12" x2="50" y2="88" stroke="#ccaa44" stroke-width="1" opacity="0.3"/>
+  <line x1="12" y1="50" x2="88" y2="50" stroke="#ccaa44" stroke-width="1" opacity="0.3"/>
+  <line x1="20" y1="20" x2="80" y2="80" stroke="#ccaa44" stroke-width="1" opacity="0.3"/>
+  <line x1="80" y1="20" x2="20" y2="80" stroke="#ccaa44" stroke-width="1" opacity="0.3"/>
+</svg>
