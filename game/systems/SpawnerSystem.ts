@@ -4,13 +4,31 @@ import { Pool } from '../core/Pool';
 import { useGameStore } from '../../store/useGameStore';
 import { Container } from 'pixi.js';
 
+// Weighted spawn pool — Tier 1 (common) appears 3×, Tier 2 twice, Tier 3 (exotic/large) once.
 const ALL_FRUIT_TYPES: FruitType[] = [
+  // Tier 1 — 1 pt each (appears 3× for higher frequency)
+  'strawberry', 'strawberry', 'strawberry',
+  'cherry',     'cherry',     'cherry',
+  'grape',      'grape',      'grape',
+  'blueberry',  'blueberry',  'blueberry',
+  'raspberry',  'raspberry',  'raspberry',
+  'apple',      'apple',      'apple',
+  // Tier 2 — 2 pts each (appears 2×)
+  'orange',  'orange',
+  'peach',   'peach',
+  'plum',    'plum',
+  'kiwi',    'kiwi',
+  'lemon',   'lemon',
+  'lime',    'lime',
+  'mango',   'mango',
+  // Tier 3 — 3 pts each (appears once — rarer)
   'watermelon',
-  'apple',
-  'orange',
+  'pineapple',
   'coconut',
   'banana',
-  'pineapple',
+  'dragonfruit',
+  'starfruit',
+  'pomegranate',
 ];
 
 export class SpawnerSystem {

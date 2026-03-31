@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
 import { useGameStore } from '../../store/useGameStore';
+import { useAchievementStore } from '../../store/useAchievementStore';
 import { InputSystem } from '../systems/InputSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
@@ -12,19 +13,49 @@ import { Bomb } from '../entities/Bomb';
 
 const ASSET_PATHS = [
   '/assets/bg.png',
+  // Whole fruits
   '/assets/watermelon.svg',
   '/assets/apple.svg',
   '/assets/orange.svg',
   '/assets/coconut.svg',
   '/assets/banana.svg',
   '/assets/pineapple.svg',
+  '/assets/strawberry.svg',
+  '/assets/cherry.svg',
+  '/assets/grape.svg',
+  '/assets/blueberry.svg',
+  '/assets/raspberry.svg',
+  '/assets/peach.svg',
+  '/assets/plum.svg',
+  '/assets/kiwi.svg',
+  '/assets/lemon.svg',
+  '/assets/lime.svg',
+  '/assets/mango.svg',
+  '/assets/dragonfruit.svg',
+  '/assets/starfruit.svg',
+  '/assets/pomegranate.svg',
   '/assets/bomb.svg',
+  // Sliced halves
   '/assets/watermelon-half.svg',
   '/assets/apple-half.svg',
   '/assets/orange-half.svg',
   '/assets/coconut-half.svg',
   '/assets/banana-half.svg',
   '/assets/pineapple-half.svg',
+  '/assets/strawberry-half.svg',
+  '/assets/cherry-half.svg',
+  '/assets/grape-half.svg',
+  '/assets/blueberry-half.svg',
+  '/assets/raspberry-half.svg',
+  '/assets/peach-half.svg',
+  '/assets/plum-half.svg',
+  '/assets/kiwi-half.svg',
+  '/assets/lemon-half.svg',
+  '/assets/lime-half.svg',
+  '/assets/mango-half.svg',
+  '/assets/dragonfruit-half.svg',
+  '/assets/starfruit-half.svg',
+  '/assets/pomegranate-half.svg',
 ];
 
 export class FruitNinjaGame {
@@ -226,10 +257,22 @@ export class FruitNinjaGame {
       if (fruit.y > height + 150) {
         if (!fruit.isSliced) {
           const currentState = useGameStore.getState();
+          currentState.recordMiss();
           if (currentState.mode === 'classic') {
             currentState.loseLife();
             audioManager.play('miss');
           }
+          const postMissState = useGameStore.getState();
+          useAchievementStore.getState().checkAndUnlock({
+            fruitsSliced: postMissState.fruitsSliced,
+            bombsDodged: postMissState.bombsDodged,
+            sliceMisses: postMissState.sliceMisses,
+            maxCombo: postMissState.maxCombo,
+            score: postMissState.score,
+            mode: postMissState.mode,
+            timeLeft: postMissState.timeLeft,
+            sessionStartTime: postMissState.sessionStartTime,
+          });
         }
         this.fruitPool!.release(fruit);
       }
@@ -240,6 +283,19 @@ export class FruitNinjaGame {
       bomb.update(dt, this.gravity);
 
       if (bomb.y > height + 150) {
+        const dodgeState = useGameStore.getState();
+        dodgeState.recordBombDodged();
+        const postDodgeState = useGameStore.getState();
+        useAchievementStore.getState().checkAndUnlock({
+          fruitsSliced: postDodgeState.fruitsSliced,
+          bombsDodged: postDodgeState.bombsDodged,
+          sliceMisses: postDodgeState.sliceMisses,
+          maxCombo: postDodgeState.maxCombo,
+          score: postDodgeState.score,
+          mode: postDodgeState.mode,
+          timeLeft: postDodgeState.timeLeft,
+          sessionStartTime: postDodgeState.sessionStartTime,
+        });
         this.bombPool!.release(bomb);
       }
     }
@@ -251,5 +307,6 @@ export class FruitNinjaGame {
     this.spawnerSystem?.resetTimers();
     this.juiceSplashSystem?.clear();
     audioManager.play('start');
+    useAchievementStore.getState().resetSession();
   }
 }

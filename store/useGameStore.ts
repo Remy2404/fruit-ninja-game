@@ -13,6 +13,17 @@ export interface GameStore {
   maxCombo: number;
   timeLeft: number;
 
+  // Session stats (reset each game, not persisted)
+  fruitsSliced: number;
+  bombsDodged: number;
+  sliceMisses: number;
+  sessionStartTime: number;
+
+  // Streak multiplier (reset each game, not persisted)
+  streakCount: number;
+  streakMultiplier: number;
+  lastSliceTime: number;
+
   soundEnabled: boolean;
   musicEnabled: boolean;
 
@@ -27,6 +38,11 @@ export interface GameStore {
   setCombo: (count: number) => void;
   setTimeLeft: (time: number) => void;
   resetGame: () => void;
+
+  recordSlice: () => number;
+  recordMiss: () => void;
+  recordBombDodged: () => void;
+  resetStreak: () => void;
 
   toggleSound: () => void;
   toggleMusic: () => void;
@@ -50,6 +66,15 @@ export const useGameStore = create<GameStore>()(
       combo: 0,
       maxCombo: 0,
       timeLeft: 0,
+
+      fruitsSliced: 0,
+      bombsDodged: 0,
+      sliceMisses: 0,
+      sessionStartTime: 0,
+
+      streakCount: 0,
+      streakMultiplier: 1,
+      lastSliceTime: 0,
 
       soundEnabled: true,
       musicEnabled: true,
@@ -110,6 +135,32 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
+      recordSlice: () => {
+        const now = Date.now();
+        const state = get();
+        const withinWindow = now - state.lastSliceTime < 3000;
+        const newStreak = withinWindow ? state.streakCount + 1 : 1;
+        const multiplier: number =
+          newStreak >= 8 ? 3 :
+          newStreak >= 5 ? 2 :
+          newStreak >= 3 ? 1.5 : 1;
+
+        set({
+          fruitsSliced: state.fruitsSliced + 1,
+          streakCount: newStreak,
+          streakMultiplier: multiplier,
+          lastSliceTime: now,
+        });
+
+        return multiplier;
+      },
+
+      recordMiss: () => set((state) => ({ sliceMisses: state.sliceMisses + 1 })),
+
+      recordBombDodged: () => set((state) => ({ bombsDodged: state.bombsDodged + 1 })),
+
+      resetStreak: () => set({ streakCount: 0, streakMultiplier: 1 }),
+
       resetGame: () => {
         const mode = get().mode;
         set({
@@ -119,6 +170,13 @@ export const useGameStore = create<GameStore>()(
           combo: 0,
           maxCombo: 0,
           timeLeft: MODE_TIME_LIMITS[mode],
+          fruitsSliced: 0,
+          bombsDodged: 0,
+          sliceMisses: 0,
+          sessionStartTime: Date.now(),
+          streakCount: 0,
+          streakMultiplier: 1,
+          lastSliceTime: 0,
         });
       },
 
@@ -131,10 +189,7 @@ export const useGameStore = create<GameStore>()(
 
         if (state.mode === 'classic' && state.score > state.bestScoreClassic) {
           updates.bestScoreClassic = state.score;
-        } else if (
-          state.mode === 'arcade' &&
-          state.score > state.bestScoreArcade
-        ) {
+        } else if (state.mode === 'arcade' && state.score > state.bestScoreArcade) {
           updates.bestScoreArcade = state.score;
         } else if (state.mode === 'zen' && state.score > state.bestScoreZen) {
           updates.bestScoreZen = state.score;

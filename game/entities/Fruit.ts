@@ -6,24 +6,97 @@ export type FruitType =
   | 'orange'
   | 'coconut'
   | 'banana'
-  | 'pineapple';
+  | 'pineapple'
+  | 'strawberry'
+  | 'cherry'
+  | 'grape'
+  | 'blueberry'
+  | 'raspberry'
+  | 'peach'
+  | 'plum'
+  | 'kiwi'
+  | 'lemon'
+  | 'lime'
+  | 'mango'
+  | 'dragonfruit'
+  | 'starfruit'
+  | 'pomegranate';
 
-const FRUIT_RADII: Record<FruitType, number> = {
-  watermelon: 48,
-  pineapple: 44,
-  coconut: 40,
-  apple: 36,
-  orange: 36,
-  banana: 34,
+// Visual radius used for rendering and collision detection.
+export const FRUIT_RADII: Record<FruitType, number> = {
+  // Tier 1 — small
+  strawberry:  30,
+  cherry:      28,
+  grape:       28,
+  blueberry:   26,
+  raspberry:   26,
+  // Tier 2 — medium
+  apple:       36,
+  orange:      36,
+  peach:       36,
+  plum:        34,
+  kiwi:        32,
+  lemon:       30,
+  lime:        28,
+  mango:       40,
+  // Tier 3 — large / exotic
+  watermelon:  48,
+  pineapple:   44,
+  coconut:     40,
+  banana:      34,
+  dragonfruit: 40,
+  starfruit:   42,
+  pomegranate: 42,
+};
+
+// Points awarded per slice (before multiplier / critical).
+export const FRUIT_BASE_SCORES: Record<FruitType, number> = {
+  // Tier 1 — easy (1 pt)
+  strawberry:  1,
+  cherry:      1,
+  grape:       1,
+  blueberry:   1,
+  raspberry:   1,
+  apple:       1,
+  // Tier 2 — medium (2 pts)
+  orange:      2,
+  peach:       2,
+  plum:        2,
+  kiwi:        2,
+  lemon:       2,
+  lime:        2,
+  mango:       2,
+  // Tier 3 — exotic (3 pts)
+  watermelon:  3,
+  pineapple:   3,
+  coconut:     3,
+  banana:      3,
+  dragonfruit: 3,
+  starfruit:   3,
+  pomegranate: 3,
 };
 
 const JUICE_COLORS: Record<FruitType, number> = {
-  watermelon: 0xff3355,
-  apple: 0xff4444,
-  orange: 0xff9933,
-  coconut: 0xf0ead6,
-  banana: 0xffe44d,
-  pineapple: 0xffd700,
+  watermelon:  0xff3355,
+  apple:       0xff4444,
+  orange:      0xff9933,
+  coconut:     0xf0ead6,
+  banana:      0xffe44d,
+  pineapple:   0xffd700,
+  strawberry:  0xff2255,
+  cherry:      0xcc0033,
+  grape:       0x8b2fc9,
+  blueberry:   0x4433cc,
+  raspberry:   0xe00055,
+  peach:       0xffaa55,
+  plum:        0x8800aa,
+  kiwi:        0x77cc22,
+  lemon:       0xffe000,
+  lime:        0x88ee00,
+  mango:       0xffaa00,
+  dragonfruit: 0xff44aa,
+  starfruit:   0xffcc00,
+  pomegranate: 0xdd0022,
 };
 
 export function getJuiceColor(type: FruitType): number {

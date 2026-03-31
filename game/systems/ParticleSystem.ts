@@ -1,6 +1,6 @@
 import { Container, Graphics, Sprite, Assets, Text } from 'pixi.js';
 import { Pool } from '../core/Pool';
-import { FruitType, getJuiceColor } from '../entities/Fruit';
+import { FruitType, getJuiceColor, FRUIT_RADII } from '../entities/Fruit';
 
 export class Particle {
   public id: string;
@@ -123,7 +123,7 @@ export class FruitHalf {
     const halfTexture = Assets.get(`/assets/${type}-half.svg`);
     const outerTexture = Assets.get(`/assets/${type}.svg`);
     this.sprite.texture = halfTexture ?? outerTexture;
-    const radius = type === 'watermelon' ? 48 : type === 'pineapple' ? 44 : 36;
+    const radius = FRUIT_RADII[type] ?? 36;
     const scale = (radius * 2) / 100;
     this.sprite.scale.set(scale);
 

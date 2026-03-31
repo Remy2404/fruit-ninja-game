@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="bb" cx="40%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#7b72e9"/>
+      <stop offset="60%" stop-color="#3a2fc8"/>
+      <stop offset="100%" stop-color="#1a0e7a"/>
+    </radialGradient>
+    <radialGradient id="bbShine" cx="30%" cy="26%" r="26%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="52" r="40" fill="url(#bb)"/>
+  <!-- Crown (calyx) at top -->
+  <path d="M36 22 Q38 12 44 16 Q46 10 50 14 Q54 10 56 16 Q62 12 64 22 Q55 20 50 22 Q45 20 36 22Z" fill="#2e7d32"/>
+  <!-- Indentation at bottom -->
+  <circle cx="50" cy="88" r="5" fill="#1a0e7a" opacity="0.5"/>
+  <!-- Shine -->
+  <circle cx="50" cy="52" r="40" fill="url(#bbShine)"/>
+</svg>

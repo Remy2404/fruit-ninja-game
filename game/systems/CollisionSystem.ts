@@ -1,12 +1,13 @@
 import { InputSystem } from './InputSystem';
 import { Pool } from '../core/Pool';
-import { Fruit, getJuiceColor } from '../entities/Fruit';
+import { Fruit, getJuiceColor, FRUIT_BASE_SCORES } from '../entities/Fruit';
 import { Bomb } from '../entities/Bomb';
 import { lineToCircleIntersection } from '../utils/PhysicsMath';
 import { ParticleSystem } from './ParticleSystem';
 import { JuiceSplashSystem } from './JuiceSplashSystem';
 import { audioManager } from './AudioManager';
 import { useGameStore } from '../../store/useGameStore';
+import { useAchievementStore } from '../../store/useAchievementStore';
 
 export class CollisionSystem {
   private inputSystem: InputSystem;
@@ -49,6 +50,18 @@ export class CollisionSystem {
         state.addScore(count * 2);
         state.setCombo(count);
         audioManager.play('combo');
+
+        const afterComboState = useGameStore.getState();
+        useAchievementStore.getState().checkAndUnlock({
+          fruitsSliced: afterComboState.fruitsSliced,
+          bombsDodged: afterComboState.bombsDodged,
+          sliceMisses: afterComboState.sliceMisses,
+          maxCombo: afterComboState.maxCombo,
+          score: afterComboState.score,
+          mode: afterComboState.mode,
+          timeLeft: afterComboState.timeLeft,
+          sessionStartTime: afterComboState.sessionStartTime,
+        });
       }
       this.slicedThisStroke = [];
       return;
@@ -128,14 +141,25 @@ export class CollisionSystem {
     audioManager.playPitchShifted('slice', 0.85, 1.15);
     audioManager.playPitchShifted('splat', 0.9, 1.1);
 
-    let points = 1;
-    let textContent = '+1';
-    let textColor = 0xffffff;
+    // Record slice and retrieve the active multiplier atomically
+    const multiplier = useGameStore.getState().recordSlice();
+
+    const tierScore = FRUIT_BASE_SCORES[fruit.type];
+    const basePoints = fruit.isCritical ? tierScore * 5 : tierScore;
+    const finalPoints = Math.round(basePoints * multiplier);
+
+    let textContent: string;
+    let textColor: number;
 
     if (fruit.isCritical) {
-      points = 10;
-      textContent = 'CRITICAL +10';
+      textContent = multiplier > 1 ? `CRITICAL! +${finalPoints}` : `CRITICAL +${basePoints}`;
       textColor = 0xff4444;
+    } else if (multiplier > 1) {
+      textContent = `+${finalPoints}`;
+      textColor = 0xff9f4a;
+    } else {
+      textContent = `+${tierScore}`;
+      textColor = tierScore === 1 ? 0xffffff : tierScore === 2 ? 0xffd709 : 0xff9f4a;
     }
 
     this.particleSystem.spawnFloatingText(
@@ -146,12 +170,27 @@ export class CollisionSystem {
       textColor,
     );
 
-    useGameStore.getState().addScore(points);
+    useGameStore.getState().addScore(finalPoints);
+
+    const postSliceState = useGameStore.getState();
+    useAchievementStore.getState().checkAndUnlock({
+      fruitsSliced: postSliceState.fruitsSliced,
+      bombsDodged: postSliceState.bombsDodged,
+      sliceMisses: postSliceState.sliceMisses,
+      maxCombo: postSliceState.maxCombo,
+      score: postSliceState.score,
+      mode: postSliceState.mode,
+      timeLeft: postSliceState.timeLeft,
+      sessionStartTime: postSliceState.sessionStartTime,
+    });
   }
 
   private handleBombSlice(bomb: Bomb) {
     this.particleSystem.spawnExplosion(bomb.x, bomb.y);
     audioManager.play('bomb');
+
+    // Hitting a bomb always resets the streak — raises the stakes
+    useGameStore.getState().resetStreak();
 
     const store = useGameStore.getState();
     const mode = store.mode;

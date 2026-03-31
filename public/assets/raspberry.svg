@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="ra" cx="40%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#ff6b9d"/>
+      <stop offset="65%" stop-color="#e0004d"/>
+      <stop offset="100%" stop-color="#8b0028"/>
+    </radialGradient>
+  </defs>
+  <!-- Drupelet cluster forming a raspberry -->
+  <circle cx="50" cy="50" r="11" fill="url(#ra)"/>
+  <circle cx="34" cy="50" r="10" fill="url(#ra)"/>
+  <circle cx="66" cy="50" r="10" fill="url(#ra)"/>
+  <circle cx="42" cy="36" r="10" fill="url(#ra)"/>
+  <circle cx="58" cy="36" r="10" fill="url(#ra)"/>
+  <circle cx="50" cy="64" r="10" fill="url(#ra)"/>
+  <circle cx="36" cy="62" r="9" fill="url(#ra)"/>
+  <circle cx="64" cy="62" r="9" fill="url(#ra)"/>
+  <!-- Highlight dots -->
+  <circle cx="47" cy="47" r="3" fill="#ffffff" opacity="0.3"/>
+  <circle cx="31" cy="47" r="2.5" fill="#ffffff" opacity="0.3"/>
+  <circle cx="39" cy="33" r="2.5" fill="#ffffff" opacity="0.3"/>
+  <!-- Leaves/stem -->
+  <path d="M42 26 Q40 14 34 16 Q38 20 40 28Z" fill="#4caf50"/>
+  <path d="M50 22 Q52 10 50 8 Q48 10 50 24Z" fill="#388e3c"/>
+  <path d="M58 26 Q60 14 66 16 Q62 20 60 28Z" fill="#4caf50"/>
+</svg>

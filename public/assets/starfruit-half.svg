@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="sfh" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff8c0"/>
+      <stop offset="55%" stop-color="#f5c820"/>
+      <stop offset="100%" stop-color="#c87800"/>
+    </radialGradient>
+  </defs>
+  <polygon points="50,6 62,36 94,36 70,56 80,88 50,70 20,88 30,56 6,36 38,36" fill="url(#sfh)"/>
+  <!-- Core segments -->
+  <polygon points="50,30 58,45 70,45 62,54 65,68 50,60 35,68 38,54 30,45 42,45" fill="#f5c820" opacity="0.5"/>
+  <circle cx="50" cy="50" r="8" fill="#f0e090" opacity="0.7"/>
+</svg>

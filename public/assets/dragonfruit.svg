@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="df" cx="40%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#ff9ec8"/>
+      <stop offset="60%" stop-color="#e8006a"/>
+      <stop offset="100%" stop-color="#8c0040"/>
+    </radialGradient>
+    <radialGradient id="dfShine" cx="30%" cy="26%" r="28%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Body -->
+  <ellipse cx="50" cy="54" rx="36" ry="40" fill="url(#df)"/>
+  <!-- Scale bracts (leaf-tips curling out) -->
+  <path d="M50 14 Q44 2 38 6 Q46 10 48 18Z" fill="#e8006a"/>
+  <path d="M50 14 Q56 2 62 6 Q54 10 52 18Z" fill="#e8006a"/>
+  <path d="M24 34 Q12 28 12 36 Q18 36 26 42Z" fill="#e8006a"/>
+  <path d="M76 34 Q88 28 88 36 Q82 36 74 42Z" fill="#e8006a"/>
+  <path d="M20 60 Q8 58 10 66 Q16 64 22 66Z" fill="#e8006a"/>
+  <path d="M80 60 Q92 58 90 66 Q84 64 78 66Z" fill="#e8006a"/>
+  <path d="M28 82 Q20 88 24 94 Q30 88 32 84Z" fill="#e8006a"/>
+  <path d="M72 82 Q80 88 76 94 Q70 88 68 84Z" fill="#e8006a"/>
+  <!-- Green tips on bracts -->
+  <path d="M50 14 Q44 2 38 6 Q42 2 46 4Z" fill="#4caf50"/>
+  <path d="M50 14 Q56 2 62 6 Q58 2 54 4Z" fill="#4caf50"/>
+  <!-- Shine -->
+  <ellipse cx="50" cy="54" rx="36" ry="40" fill="url(#dfShine)"/>
+</svg>

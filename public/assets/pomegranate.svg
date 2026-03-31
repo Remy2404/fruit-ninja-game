@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="pom" cx="40%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#ff6b6b"/>
+      <stop offset="65%" stop-color="#c0001a"/>
+      <stop offset="100%" stop-color="#7a0010"/>
+    </radialGradient>
+    <radialGradient id="pomShine" cx="30%" cy="26%" r="28%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Main round body -->
+  <circle cx="50" cy="56" r="40" fill="url(#pom)"/>
+  <!-- Crown (calyx) -->
+  <path d="M36 22 Q38 12 44 16 Q44 8 50 10 Q56 8 56 16 Q62 12 64 22 Q56 20 50 22 Q44 20 36 22Z" fill="#5a8c1a"/>
+  <!-- Stem -->
+  <line x1="50" y1="16" x2="50" y2="22" stroke="#5a3a1a" stroke-width="3.5" stroke-linecap="round"/>
+  <!-- Leathery peel texture -->
+  <circle cx="50" cy="56" r="40" fill="none" stroke="#9a0014" stroke-width="6" opacity="0.2"/>
+  <circle cx="50" cy="56" r="32" fill="none" stroke="#9a0014" stroke-width="4" opacity="0.15"/>
+  <!-- Shine -->
+  <circle cx="50" cy="56" r="40" fill="url(#pomShine)"/>
+</svg>

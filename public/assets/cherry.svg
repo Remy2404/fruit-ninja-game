@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="ch1" cx="38%" cy="35%" r="52%">
+      <stop offset="0%" stop-color="#ff6677"/>
+      <stop offset="100%" stop-color="#b80020"/>
+    </radialGradient>
+    <radialGradient id="ch2" cx="62%" cy="55%" r="52%">
+      <stop offset="0%" stop-color="#ff6677"/>
+      <stop offset="100%" stop-color="#b80020"/>
+    </radialGradient>
+    <radialGradient id="chShine" cx="30%" cy="28%" r="26%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Left cherry -->
+  <circle cx="34" cy="65" r="22" fill="url(#ch1)"/>
+  <!-- Right cherry -->
+  <circle cx="66" cy="65" r="22" fill="url(#ch2)"/>
+  <!-- Stems -->
+  <path d="M34 43 Q34 22 50 18" stroke="#5a8c1a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M66 43 Q66 22 50 18" stroke="#5a8c1a" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Leaf -->
+  <path d="M50 18 Q58 10 64 16 Q58 20 50 22Z" fill="#66bb6a"/>
+  <!-- Shines -->
+  <circle cx="34" cy="65" r="22" fill="url(#chShine)"/>
+  <circle cx="66" cy="65" r="22" fill="url(#chShine)"/>
+</svg>

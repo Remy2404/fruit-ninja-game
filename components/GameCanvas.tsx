@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useGameStore } from '../store/useGameStore';
 import { FruitNinjaGame } from '../game/core/Game';
 
 export default function GameCanvas() {

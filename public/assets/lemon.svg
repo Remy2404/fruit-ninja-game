@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="le" cx="40%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#fff88a"/>
+      <stop offset="65%" stop-color="#f4d000"/>
+      <stop offset="100%" stop-color="#c8a200"/>
+    </radialGradient>
+    <radialGradient id="leShine" cx="30%" cy="26%" r="28%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Oval body -->
+  <ellipse cx="50" cy="52" rx="36" ry="42" fill="url(#le)"/>
+  <!-- Nib ends -->
+  <ellipse cx="50" cy="14" rx="7" ry="6" fill="#c8a200"/>
+  <ellipse cx="50" cy="90" rx="7" ry="6" fill="#c8a200"/>
+  <!-- Peel texture lines -->
+  <line x1="50" y1="14" x2="50" y2="90" stroke="#e8c000" stroke-width="1.5" opacity="0.4"/>
+  <line x1="30" y1="18" x2="24" y2="82" stroke="#e8c000" stroke-width="1.5" opacity="0.3"/>
+  <line x1="70" y1="18" x2="76" y2="82" stroke="#e8c000" stroke-width="1.5" opacity="0.3"/>
+  <!-- Shine -->
+  <ellipse cx="50" cy="52" rx="36" ry="42" fill="url(#leShine)"/>
+</svg>

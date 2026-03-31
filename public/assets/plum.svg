@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="pl" cx="38%" cy="35%" r="55%">
+      <stop offset="0%" stop-color="#c075e0"/>
+      <stop offset="60%" stop-color="#7b1fa2"/>
+      <stop offset="100%" stop-color="#4a0078"/>
+    </radialGradient>
+    <radialGradient id="plShine" cx="30%" cy="26%" r="28%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.38"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="plBloom" cx="60%" cy="60%" r="35%">
+      <stop offset="0%" stop-color="#ce93d8" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#ce93d8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Fruit body -->
+  <path d="M50 88 C22 88 14 66 16 48 C18 28 32 14 50 14 C68 14 82 28 84 48 C86 66 78 88 50 88Z" fill="url(#pl)"/>
+  <!-- Cleft -->
+  <path d="M50 14 Q48 8 50 4 Q52 8 50 14Z" fill="#4a0078"/>
+  <!-- Bloom highlight -->
+  <ellipse cx="50" cy="52" rx="32" ry="37" fill="url(#plBloom)"/>
+  <!-- Stem -->
+  <line x1="50" y1="8" x2="50" y2="17" stroke="#5a3a1a" stroke-width="3" stroke-linecap="round"/>
+  <!-- Leaf -->
+  <path d="M50 13 Q60 5 66 11 Q58 17 52 16Z" fill="#66bb6a"/>
+  <!-- Shine -->
+  <ellipse cx="50" cy="52" rx="32" ry="37" fill="url(#plShine)"/>
+</svg>

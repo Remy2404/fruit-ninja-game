@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="pomh" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffdddd"/>
+      <stop offset="40%" stop-color="#e80020"/>
+      <stop offset="100%" stop-color="#7a0010"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="56" r="40" fill="url(#pomh)"/>
+  <!-- Arils (seeds) pattern -->
+  <circle cx="38" cy="46" r="5" fill="#c80010" opacity="0.8"/>
+  <circle cx="50" cy="42" r="5" fill="#c80010" opacity="0.8"/>
+  <circle cx="62" cy="46" r="5" fill="#c80010" opacity="0.8"/>
+  <circle cx="34" cy="58" r="5" fill="#c80010" opacity="0.8"/>
+  <circle cx="46" cy="54" r="5" fill="#ff3344" opacity="0.9"/>
+  <circle cx="58" cy="54" r="5" fill="#ff3344" opacity="0.9"/>
+  <circle cx="66" cy="60" r="5" fill="#c80010" opacity="0.8"/>
+  <circle cx="40" cy="68" r="5" fill="#ff3344" opacity="0.9"/>
+  <circle cx="52" cy="66" r="5" fill="#c80010" opacity="0.8"/>
+  <circle cx="63" cy="70" r="4" fill="#ff3344" opacity="0.7"/>
+  <!-- Highlight on arils -->
+  <circle cx="36" cy="44" r="2" fill="#ffffff" opacity="0.35"/>
+  <circle cx="48" cy="40" r="2" fill="#ffffff" opacity="0.35"/>
+  <circle cx="60" cy="44" r="2" fill="#ffffff" opacity="0.35"/>
+</svg>
