@@ -35,11 +35,8 @@ export class InputSystem {
   }
 
   private bindEvents() {
-    // Pixi strongly encourages interaction strictly on interactive elements
-    // We make the stage fully interactive and covering the screen.
     this.app.stage.eventMode = 'dynamic';
     this.app.stage.hitArea = new Rectangle(0, 0, 10000, 10000); 
-    // Actually in v8 we can just attach to the canvas DOM element itself for global reliability!
     
     const canvas = this.app.canvas as HTMLCanvasElement;
     
@@ -75,11 +72,11 @@ export class InputSystem {
 
   private onPointerUp = () => {
     this.isSwiping = false;
-    // We let the remaining points naturally expire instead of instantly clearing them
+
   };
 
   private addPoint(x: number, y: number) {
-    // Determine canvas bounds to map screen -> canvas space correctly
+   
     const rect = this.app.canvas.getBoundingClientRect();
     const scaleX = this.app.screen.width / rect.width;
     const scaleY = this.app.screen.height / rect.height;
@@ -91,13 +88,9 @@ export class InputSystem {
     });
   }
 
-  /**
-   * Called every frame by the Game's main loop
-   */
   public update(dt: number) {
     const now = performance.now();
 
-    // 1. Remove expired points (older than TRAIL_LIFETIME)
     this.points = this.points.filter(p => now - p.time < this.TRAIL_LIFETIME);
 
     // 2. Short-circuit if no valid trail
@@ -136,7 +129,5 @@ export class InputSystem {
         this.trailGraphics.stroke({ width: thickness * 2, color: 0x88ccff, alpha: progress * 0.5 });
     }
     
-    // Smooth line caps/joints isn't directly trivial with basic `stroke` in v8 without a geometry mesh
-    // But drawing successive thick lines naturally creates a decent sword effect.
   }
 }
