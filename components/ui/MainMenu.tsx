@@ -11,7 +11,7 @@ const MODES: {
   gradient: string;
   glow: string;
   border: string;
-  bestKey: 'bestScoreClassic' | 'bestScoreArcade' | 'bestScoreZen' | 'bestScoreSongkran' | 'bestScoreFrenzy';
+  bestKey: 'bestScoreClassic' | 'bestScoreArcade' | 'bestScoreZen' | 'bestScoreSongkran' | 'bestScoreFrenzy' | 'bestScoreRisk' | 'bestScoreMemory' | 'bestScoreComboMaster' | 'bestScoreTsunami' | 'bestScorePrecision' | 'bestScoreChaos' | 'bestScoreTimeFreeze';
   badge: string;
 }[] = [
   {
@@ -69,6 +69,83 @@ const MODES: {
     bestKey: 'bestScoreFrenzy',
     badge: 'bg-fuchsia-500/15 text-fuchsia-400',
   },
+  {
+    id: 'risk',
+    title: 'RISK',
+    desc: 'Golden +5, Cursed -10.',
+    detail: 'High risk, high reward.',
+    gradient: 'from-yellow-400 to-red-600',
+    glow: 'rgba(255,180,0,0.4)',
+    border: 'border-yellow-500/40 hover:border-yellow-400',
+    bestKey: 'bestScoreRisk',
+    badge: 'bg-yellow-500/15 text-yellow-400',
+  },
+  {
+    id: 'memory',
+    title: 'MEMORY',
+    desc: 'Objects fade quickly.',
+    detail: 'Trust your instincts.',
+    gradient: 'from-slate-400 to-indigo-600',
+    glow: 'rgba(100,100,255,0.4)',
+    border: 'border-indigo-500/40 hover:border-indigo-400',
+    bestKey: 'bestScoreMemory',
+    badge: 'bg-indigo-500/15 text-indigo-400',
+  },
+  {
+    id: 'combo_master',
+    title: 'COMBO M.',
+    desc: 'Only combos score points!',
+    detail: 'Singles are worthless.',
+    gradient: 'from-pink-500 to-rose-600',
+    glow: 'rgba(255,100,150,0.4)',
+    border: 'border-pink-500/40 hover:border-pink-400',
+    bestKey: 'bestScoreComboMaster',
+    badge: 'bg-pink-500/15 text-pink-400',
+  },
+  {
+    id: 'tsunami',
+    title: 'TSUNAMI',
+    desc: 'Fruits move in waves.',
+    detail: 'Survive watery chaos.',
+    gradient: 'from-blue-400 to-teal-600',
+    glow: 'rgba(0,180,255,0.4)',
+    border: 'border-blue-500/40 hover:border-blue-400',
+    bestKey: 'bestScoreTsunami',
+    badge: 'bg-blue-500/15 text-blue-400',
+  },
+  {
+    id: 'precision',
+    title: 'PRECISION',
+    desc: 'Slice center for 2x points.',
+    detail: 'Edge cuts penalized.',
+    gradient: 'from-emerald-400 to-lime-600',
+    glow: 'rgba(100,255,100,0.4)',
+    border: 'border-emerald-500/40 hover:border-emerald-400',
+    bestKey: 'bestScorePrecision',
+    badge: 'bg-emerald-500/15 text-emerald-400',
+  },
+  {
+    id: 'chaos',
+    title: 'CHAOS',
+    desc: 'Double points, insane speed.',
+    detail: 'Fast-paced madness.',
+    gradient: 'from-rose-500 to-violet-600',
+    glow: 'rgba(255,50,200,0.4)',
+    border: 'border-rose-500/40 hover:border-rose-400',
+    bestKey: 'bestScoreChaos',
+    badge: 'bg-rose-500/15 text-rose-400',
+  },
+  {
+    id: 'time_freeze',
+    title: 'FREEZE',
+    desc: 'Slow time to survive.',
+    detail: 'Control the flow.',
+    gradient: 'from-sky-300 to-indigo-500',
+    glow: 'rgba(100,200,255,0.4)',
+    border: 'border-sky-500/40 hover:border-sky-400',
+    bestKey: 'bestScoreTimeFreeze',
+    badge: 'bg-sky-500/15 text-sky-400',
+  }
 ];
 
 export function MainMenu() {
@@ -82,7 +159,7 @@ export function MainMenu() {
 
   return (
     <motion.div
-      className="flex flex-col items-center justify-center h-full bg-black/70 backdrop-blur-lg"
+      className="flex flex-col items-center justify-start overflow-y-auto h-full w-full bg-black/70 backdrop-blur-lg pt-12 pb-24"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
@@ -110,7 +187,7 @@ export function MainMenu() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 md:gap-5 max-w-7xl px-4 w-full"
+        className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-5 max-w-7xl px-4 w-full"
       >
         {MODES.map((m, idx) => (
           <motion.button

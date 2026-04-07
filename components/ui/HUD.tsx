@@ -20,6 +20,8 @@ export function HUD() {
     streakCount,
     streakMultiplier,
     lastSliceTime,
+    energy,
+    isEnergyActive,
   } = useGameStore();
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -117,6 +119,20 @@ export function HUD() {
             >
               {timeLeft}s
             </motion.div>
+          )}
+
+          {modeConfig.enableTimeControl && (
+            <div className="mt-4 w-32 md:w-48 h-3 bg-black/60 overflow-hidden rounded-full border border-sky-400/30 shadow-[0_0_10px_rgba(56,189,248,0.2)] flex-shrink-0">
+              <div 
+                className="h-full bg-sky-400 rounded-full"
+                style={{ 
+                  width: `${Math.max(0, Math.min(100, energy * 100))}%`,
+                  transition: 'width 0.1s linear',
+                  boxShadow: isEnergyActive ? '0 0 12px #38bdf8' : 'none',
+                  filter: isEnergyActive ? 'brightness(1.5)' : 'brightness(1)'
+                }}
+              />
+            </div>
           )}
         </div>
 

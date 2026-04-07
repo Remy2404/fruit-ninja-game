@@ -4,7 +4,7 @@ import { getModeConfig } from '../game/config/ModeConfig';
 import { getThemeModeMapping } from '../game/config/ThemeConfig';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover';
-export type GameMode = 'classic' | 'arcade' | 'zen' | 'songkran' | 'frenzy';
+export type GameMode = 'classic' | 'arcade' | 'zen' | 'songkran' | 'frenzy' | 'risk' | 'memory' | 'combo_master' | 'tsunami' | 'precision' | 'chaos' | 'time_freeze';
 export type GameEndReason = 'lives' | 'bomb' | 'timeout';
 
 export interface GameStore {
@@ -17,6 +17,10 @@ export interface GameStore {
   combo: number;
   maxCombo: number;
   timeLeft: number;
+
+  energy: number;
+  timeScale: number;
+  isEnergyActive: boolean;
 
   fruitsSliced: number;
   bombsDodged: number;
@@ -35,6 +39,13 @@ export interface GameStore {
   bestScoreZen: number;
   bestScoreSongkran: number;
   bestScoreFrenzy: number;
+  bestScoreRisk: number;
+  bestScoreMemory: number;
+  bestScoreComboMaster: number;
+  bestScoreTsunami: number;
+  bestScorePrecision: number;
+  bestScoreChaos: number;
+  bestScoreTimeFreeze: number;
 
   setStatus: (status: GameState) => void;
   setMode: (mode: GameMode) => void;
@@ -43,6 +54,11 @@ export interface GameStore {
   setCombo: (count: number) => void;
   setTimeLeft: (time: number) => void;
   resetGame: () => void;
+
+  decreaseEnergy: (amount: number) => void;
+  increaseEnergy: (amount: number) => void;
+  setTimeScale: (value: number) => void;
+  setIsEnergyActive: (active: boolean) => void;
 
   recordSlice: () => number;
   recordMiss: () => void;
@@ -68,6 +84,10 @@ export const useGameStore = create<GameStore>()(
       maxCombo: 0,
       timeLeft: 0,
 
+      energy: 100,
+      timeScale: 1.0,
+      isEnergyActive: false,
+
       fruitsSliced: 0,
       bombsDodged: 0,
       sliceMisses: 0,
@@ -85,6 +105,13 @@ export const useGameStore = create<GameStore>()(
       bestScoreZen: 0,
       bestScoreSongkran: 0,
       bestScoreFrenzy: 0,
+      bestScoreRisk: 0,
+      bestScoreMemory: 0,
+      bestScoreComboMaster: 0,
+      bestScoreTsunami: 0,
+      bestScorePrecision: 0,
+      bestScoreChaos: 0,
+      bestScoreTimeFreeze: 0,
 
       setStatus: (status) => set({ status }),
       setMode: (mode) => set({ mode, themeId: getThemeModeMapping(mode) }),
@@ -140,6 +167,22 @@ export const useGameStore = create<GameStore>()(
         }
       },
 
+      decreaseEnergy: (amount) => {
+        set((state) => ({ energy: Math.max(0, state.energy - amount) }));
+      },
+
+      increaseEnergy: (amount) => {
+        set((state) => ({ energy: Math.min(100, state.energy + amount) }));
+      },
+
+      setTimeScale: (value) => {
+        set({ timeScale: value });
+      },
+
+      setIsEnergyActive: (active) => {
+        set({ isEnergyActive: active });
+      },
+
       recordSlice: () => {
         const now = Date.now();
         const state = get();
@@ -176,6 +219,9 @@ export const useGameStore = create<GameStore>()(
           combo: 0,
           maxCombo: 0,
           timeLeft: modeConfig.timerSeconds,
+          energy: 100,
+          timeScale: 1.0,
+          isEnergyActive: false,
           fruitsSliced: 0,
           bombsDodged: 0,
           sliceMisses: 0,
@@ -210,6 +256,20 @@ export const useGameStore = create<GameStore>()(
           updates.bestScoreSongkran = state.score;
         } else if (state.mode === 'frenzy' && state.score > state.bestScoreFrenzy) {
           updates.bestScoreFrenzy = state.score;
+        } else if (state.mode === 'risk' && state.score > state.bestScoreRisk) {
+          updates.bestScoreRisk = state.score;
+        } else if (state.mode === 'memory' && state.score > state.bestScoreMemory) {
+          updates.bestScoreMemory = state.score;
+        } else if (state.mode === 'combo_master' && state.score > state.bestScoreComboMaster) {
+          updates.bestScoreComboMaster = state.score;
+        } else if (state.mode === 'tsunami' && state.score > state.bestScoreTsunami) {
+          updates.bestScoreTsunami = state.score;
+        } else if (state.mode === 'precision' && state.score > state.bestScorePrecision) {
+          updates.bestScorePrecision = state.score;
+        } else if (state.mode === 'chaos' && state.score > state.bestScoreChaos) {
+          updates.bestScoreChaos = state.score;
+        } else if (state.mode === 'time_freeze' && state.score > state.bestScoreTimeFreeze) {
+          updates.bestScoreTimeFreeze = state.score;
         }
 
         set(updates);
@@ -223,6 +283,13 @@ export const useGameStore = create<GameStore>()(
         bestScoreZen: state.bestScoreZen,
         bestScoreSongkran: state.bestScoreSongkran,
         bestScoreFrenzy: state.bestScoreFrenzy,
+        bestScoreRisk: state.bestScoreRisk,
+        bestScoreMemory: state.bestScoreMemory,
+        bestScoreComboMaster: state.bestScoreComboMaster,
+        bestScoreTsunami: state.bestScoreTsunami,
+        bestScorePrecision: state.bestScorePrecision,
+        bestScoreChaos: state.bestScoreChaos,
+        bestScoreTimeFreeze: state.bestScoreTimeFreeze,
         soundEnabled: state.soundEnabled,
         musicEnabled: state.musicEnabled,
       }),

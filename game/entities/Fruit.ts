@@ -43,6 +43,8 @@ export class Fruit {
   public juiceColor = 0xffffff;
   public isSliced = false;
   public isCritical = false;
+  public age = 0;
+  public variant: 'normal' | 'gold' | 'cursed' = 'normal';
 
   public container: Container;
   public sprite: Sprite;
@@ -66,6 +68,8 @@ export class Fruit {
     this.active = true;
     this.isSliced = false;
     this.isCritical = Math.random() < 0.1;
+    this.age = 0;
+    this.variant = 'normal';
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -96,6 +100,20 @@ export class Fruit {
       const texSize = Math.max(texture.width, texture.height) || 100;
       const scale = ((this.radius * 2) / texSize) * 1.25;
       this.sprite.scale.set(scale);
+      this.sprite.tint = 0xffffff; // Reset tint
+    }
+  }
+
+  public setVariant(v: 'normal' | 'gold' | 'cursed') {
+    this.variant = v;
+    if (v === 'gold') {
+      this.sprite.tint = 0xffd700;
+      this.baseScore = 5;
+    } else if (v === 'cursed') {
+      this.sprite.tint = 0x8800ff;
+      this.baseScore = -10;
+    } else {
+      this.sprite.tint = 0xffffff;
     }
   }
 
@@ -106,6 +124,7 @@ export class Fruit {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.rotation += this.angularVelocity * dt;
+    this.age += dt * 16.66; // approx ms
 
     this.container.position.set(this.x, this.y);
     this.container.rotation = this.rotation;

@@ -102,7 +102,7 @@ export function buildAssetManifest(theme: ThemeConfig): string[] {
 }
 
 export function getThemeModeMapping(modeId: string): string {
-  if (modeId === 'songkran' || modeId === 'frenzy') return 'khmerSongkran';
+  if (modeId === 'songkran' || modeId === 'frenzy' || modeId === 'tsunami') return 'khmerSongkran';
   return 'default';
 }
 

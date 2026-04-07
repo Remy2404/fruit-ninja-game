@@ -87,7 +87,8 @@ export class SpawnerSystem {
       this.waveCount++;
 
       const score = useGameStore.getState().score;
-      const minInterval = Math.max(this.modeConfig.spawnIntervalMs * 0.375, 500);
+      const baseDiff = this.modeConfig.spawnIntervalMs * 0.375;
+      const minInterval = this.modeConfig.id === 'chaos' ? 150 : Math.max(baseDiff, 500);
       this.spawnInterval = Math.max(
         minInterval,
         this.modeConfig.spawnIntervalMs - score * 8 - this.waveCount * 3,
@@ -140,6 +141,19 @@ export class SpawnerSystem {
           this.fruitLayer.addChild(f.container);
         }
         f.spawn(spawnX, spawnY, vx, vy, objectDef);
+
+        if (this.modeConfig.enableRiskObjects) {
+          const r = Math.random();
+          if (r < 0.15) {
+            f.setVariant('cursed');
+          } else if (r < 0.25) {
+            f.setVariant('gold');
+          } else {
+            f.setVariant('normal');
+          }
+        } else {
+          f.setVariant('normal');
+        }
       }
     }
   }

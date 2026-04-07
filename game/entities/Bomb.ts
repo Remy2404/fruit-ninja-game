@@ -3,6 +3,7 @@ import { Container, Sprite, Assets, Graphics } from 'pixi.js';
 export class Bomb {
   public id = '';
   public active = false;
+  public age = 0;
 
   public x = 0;
   public y = 0;
@@ -43,6 +44,7 @@ export class Bomb {
     bombRadius: number,
   ) {
     this.active = true;
+    this.age = 0;
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -88,6 +90,7 @@ export class Bomb {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.rotation += this.angularVelocity * dt;
+    this.age += dt * 16.66;
 
     this.glowPhase += 0.06 * dt;
     const glowAlpha = 0.12 + Math.sin(this.glowPhase) * 0.08;

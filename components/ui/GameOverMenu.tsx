@@ -65,7 +65,7 @@ function resolveEndState(mode: GameMode, reason: GameEndReason) {
       iconBorder: 'rgba(255,215,9,0.30)',
       iconGlow: 'rgba(255,215,9,0.18)',
       iconColor: '#ffd709',
-      heading: mode === 'zen' ? 'Zen Complete' : mode === 'frenzy' ? 'FRENZY OVER!' : 'Time\'s Up!',
+      heading: mode === 'zen' ? 'Zen Complete' : mode === 'frenzy' ? 'FRENZY OVER!' : mode === 'combo_master' ? 'COMBO MASTER OVER!' : 'Time\'s Up!',
       headingGradient: 'linear-gradient(135deg, #ffd709, #ff9f4a)',
       topGlow: 'linear-gradient(to right, transparent, #ffd709, transparent)',
       isWin: true,
@@ -111,6 +111,13 @@ export function GameOverMenu() {
     bestScoreZen,
     bestScoreSongkran,
     bestScoreFrenzy,
+    bestScoreRisk,
+    bestScoreMemory,
+    bestScoreComboMaster,
+    bestScoreTsunami,
+    bestScorePrecision,
+    bestScoreChaos,
+    bestScoreTimeFreeze,
     fruitsSliced,
     bombsDodged,
     sliceMisses,
@@ -127,6 +134,13 @@ export function GameOverMenu() {
     mode === 'arcade'    ? bestScoreArcade   :
     mode === 'songkran'  ? bestScoreSongkran :
     mode === 'frenzy'    ? bestScoreFrenzy   :
+    mode === 'risk'      ? bestScoreRisk     :
+    mode === 'memory'    ? bestScoreMemory   :
+    mode === 'combo_master' ? bestScoreComboMaster :
+    mode === 'tsunami'   ? bestScoreTsunami  :
+    mode === 'precision' ? bestScorePrecision :
+    mode === 'chaos'     ? bestScoreChaos    :
+    mode === 'time_freeze' ? bestScoreTimeFreeze :
     bestScoreZen;
 
   const total = fruitsSliced + sliceMisses;

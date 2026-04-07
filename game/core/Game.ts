@@ -16,6 +16,9 @@ import { getModeConfig } from '../config/ModeConfig';
 import { getThemeConfig, buildAssetManifest } from '../config/ThemeConfig';
 import type { ModeConfig } from '../config/ModeConfig';
 import type { ThemeConfig } from '../config/ThemeConfig';
+import { MemoryFadeSystem } from '../systems/MemoryFadeSystem';
+import { WaveMotionSystem } from '../systems/WaveMotionSystem';
+import { TimeControlSystem } from '../systems/TimeControlSystem';
 
 export class FruitNinjaGame {
   private app: Application;
@@ -40,6 +43,10 @@ export class FruitNinjaGame {
 
   private fruitPool: Pool<Fruit> | null = null;
   private bombPool: Pool<Bomb> | null = null;
+
+  private memoryFadeSystem: MemoryFadeSystem | null = null;
+  private waveMotionSystem: WaveMotionSystem | null = null;
+  private timeControlSystem: TimeControlSystem | null = null;
 
   private gravity = 0.25;
   private prevStatus = '';
@@ -149,6 +156,10 @@ export class FruitNinjaGame {
       this.screenFeedback,
     );
 
+    this.memoryFadeSystem = new MemoryFadeSystem(this.fruitPool, this.bombPool, this.modeConfig);
+    this.waveMotionSystem = new WaveMotionSystem(this.fruitPool, this.bombPool, this.modeConfig);
+    this.timeControlSystem = new TimeControlSystem(this.modeConfig);
+
     this.app.ticker.add(this.update);
     this.isInitialized = true;
   }
@@ -194,13 +205,17 @@ export class FruitNinjaGame {
 
     const dt = this.app.ticker.deltaTime;
     const state = useGameStore.getState();
+    const timeScale = state.timeScale || 1.0;
+    const scaledDt = dt * timeScale;
     const status = state.status;
 
+    this.timeControlSystem?.update(dt);
+
     this.inputSystem!.update(dt);
-    this.particleSystem!.update(dt, this.gravity);
-    this.juiceSplashSystem!.update(dt);
-    this.backgroundSystem?.update(dt);
-    this.screenFeedback?.update(dt);
+    this.particleSystem!.update(scaledDt, this.gravity);
+    this.juiceSplashSystem!.update(scaledDt);
+    this.backgroundSystem?.update(scaledDt);
+    this.screenFeedback?.update(scaledDt);
 
     if (status === 'playing' && this.prevStatus !== 'playing') {
       this.onGameStart();
@@ -214,14 +229,17 @@ export class FruitNinjaGame {
 
     if (status !== 'playing') return;
 
-    this.spawnerSystem!.update(dt);
-    this.collisionSystem!.update(dt);
+    this.spawnerSystem!.update(scaledDt);
+    this.collisionSystem!.update(scaledDt);
+    
+    this.memoryFadeSystem?.update(scaledDt);
+    this.waveMotionSystem?.update(scaledDt);
 
     const { height } = this.app.renderer;
 
     for (let i = this.fruitPool!.active.length - 1; i >= 0; i--) {
       const fruit = this.fruitPool!.active[i];
-      fruit.update(dt, this.gravity);
+      fruit.update(scaledDt, this.gravity);
 
       if (fruit.y > height + 150) {
         if (!fruit.isSliced) {
@@ -251,7 +269,7 @@ export class FruitNinjaGame {
 
     for (let i = this.bombPool!.active.length - 1; i >= 0; i--) {
       const bomb = this.bombPool!.active[i];
-      bomb.update(dt, this.gravity);
+      bomb.update(scaledDt, this.gravity);
 
       if (bomb.y > height + 150) {
         const dodgeState = useGameStore.getState();

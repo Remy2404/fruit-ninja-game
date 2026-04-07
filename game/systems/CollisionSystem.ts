@@ -9,6 +9,7 @@ import { ScreenFeedbackSystem } from './ScreenFeedbackSystem';
 import { audioManager } from './AudioManager';
 import { useGameStore } from '../../store/useGameStore';
 import { useAchievementStore } from '../../store/useAchievementStore';
+import { PrecisionSystem } from './PrecisionSystem';
 import type { ModeConfig } from '../config/ModeConfig';
 
 export class CollisionSystem {
@@ -55,7 +56,12 @@ export class CollisionSystem {
           0xffcc00,
         );
 
-        state.addScore(count * 2);
+        let comboScore = count * 2;
+        if (this.modeConfig.enableComboOnly) {
+          comboScore = count * 5; // Re-balance for combo only mode
+        }
+
+        state.addScore(comboScore);
         state.setCombo(count);
         audioManager.play('combo');
 
@@ -152,21 +158,51 @@ export class CollisionSystem {
     const multiplier = useGameStore.getState().recordSlice();
 
     const tierScore = fruit.baseScore;
-    const basePoints = fruit.isCritical ? tierScore * 5 : tierScore;
-    const finalPoints = Math.round(basePoints * multiplier * this.modeConfig.scoreMultiplier);
+    let basePoints = fruit.isCritical ? tierScore * 5 : tierScore;
+
+    let precisionMult = 1;
+    if (this.modeConfig.enablePrecisionScoring) {
+      precisionMult = PrecisionSystem.calculatePrecisionMultiplier(fruit, p1, p2);
+      basePoints *= precisionMult;
+    }
+
+    const isGold = fruit.variant === 'gold';
+    const isCursed = fruit.variant === 'cursed';
+
+    if (isGold) basePoints += 5;
+    if (isCursed) basePoints -= 10;
+
+    const finalPoints = this.modeConfig.enableComboOnly 
+      ? 0 
+      : Math.round(basePoints * multiplier * this.modeConfig.scoreMultiplier);
 
     let textContent: string;
     let textColor: number;
 
-    if (fruit.isCritical) {
+    if (this.modeConfig.enableComboOnly) {
+      textContent = "SLICE!";
+      textColor = 0xcccccc;
+    } else if (isCursed) {
+      textContent = `CURSED! ${finalPoints}`;
+      textColor = 0x8800ff;
+    } else if (isGold) {
+      textContent = `GOLD! +${finalPoints}`;
+      textColor = 0xffd700;
+    } else if (precisionMult >= 2.0) {
+      textContent = `PERFECT! +${finalPoints}`;
+      textColor = 0x00ffff;
+    } else if (precisionMult <= 0.5) {
+      textContent = `SLOPPY +${finalPoints}`;
+      textColor = 0xaaaaaa;
+    } else if (fruit.isCritical) {
       textContent = multiplier > 1 ? `CRITICAL! +${finalPoints}` : `CRITICAL +${basePoints}`;
       textColor = 0xff4444;
     } else if (multiplier > 1) {
-      textContent = `+${finalPoints}`;
+      textContent = finalPoints >= 0 ? `+${finalPoints}` : `${finalPoints}`;
       textColor = 0xff9f4a;
     } else {
-      textContent = `+${tierScore}`;
-      textColor = tierScore === 1 ? 0xffffff : tierScore === 2 ? 0xffd709 : 0xff9f4a;
+      textContent = finalPoints >= 0 ? `+${finalPoints}` : `${finalPoints}`;
+      textColor = finalPoints === 1 ? 0xffffff : finalPoints === 2 ? 0xffd709 : 0xff9f4a;
     }
 
     this.particleSystem.spawnFloatingText(

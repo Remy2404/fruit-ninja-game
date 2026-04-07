@@ -1,5 +1,6 @@
 import { Application, Container, Graphics, Rectangle } from 'pixi.js';
 import { audioManager } from './AudioManager';
+import { useGameStore } from '../../store/useGameStore';
 
 export interface TrailPoint {
   x: number;
@@ -60,6 +61,7 @@ export class InputSystem {
 
   private onPointerDown = (e: PointerEvent) => {
     this.isSwiping = true;
+    useGameStore.getState().setIsEnergyActive(true);
     this.points = [];
     this.addPoint(e.clientX, e.clientY);
     audioManager.playPitchShifted('whoosh', 0.8, 1.2);
@@ -72,7 +74,7 @@ export class InputSystem {
 
   private onPointerUp = () => {
     this.isSwiping = false;
-
+    useGameStore.getState().setIsEnergyActive(false);
   };
 
   private addPoint(x: number, y: number) {
