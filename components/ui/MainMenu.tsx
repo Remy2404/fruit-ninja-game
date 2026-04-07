@@ -11,7 +11,7 @@ const MODES: {
   gradient: string;
   glow: string;
   border: string;
-  bestKey: 'bestScoreClassic' | 'bestScoreArcade' | 'bestScoreZen';
+  bestKey: 'bestScoreClassic' | 'bestScoreArcade' | 'bestScoreZen' | 'bestScoreSongkran';
   badge: string;
 }[] = [
   {
@@ -46,6 +46,17 @@ const MODES: {
     border: 'border-green-500/40 hover:border-green-400',
     bestKey: 'bestScoreZen',
     badge: 'bg-green-500/15 text-green-400',
+  },
+  {
+    id: 'songkran',
+    title: 'SONGKRAN',
+    desc: '3 Lives. Pot Bomb = Game Over.',
+    detail: 'Khmer New Year festival!',
+    gradient: 'from-amber-500 to-yellow-500',
+    glow: 'rgba(212,160,23,0.45)',
+    border: 'border-amber-500/40 hover:border-amber-400',
+    bestKey: 'bestScoreSongkran',
+    badge: 'bg-amber-500/15 text-amber-400',
   },
 ];
 
@@ -88,11 +99,12 @@ export function MainMenu() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="flex flex-col md:flex-row gap-4 md:gap-6 max-w-5xl px-4 w-full"
+        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5 max-w-6xl px-4 w-full"
       >
         {MODES.map((m, idx) => (
           <motion.button
             key={m.id}
+            id={`menu-card-${m.id}`}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 + idx * 0.08 }}
@@ -100,7 +112,7 @@ export function MainMenu() {
             whileTap={{ scale: 0.97 }}
             onClick={() => handleStart(m.id)}
             className={`
-              group relative flex-1 overflow-hidden rounded-2xl md:rounded-3xl
+              group relative overflow-hidden rounded-2xl md:rounded-3xl
               bg-zinc-900/80 border-2 ${m.border}
               p-6 md:p-8 text-left transition-all
               hover:bg-zinc-800/90

@@ -1,13 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { getModeConfig } from '../game/config/ModeConfig';
+import { getThemeModeMapping } from '../game/config/ThemeConfig';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover';
-export type GameMode = 'classic' | 'arcade' | 'zen';
+export type GameMode = 'classic' | 'arcade' | 'zen' | 'songkran';
 export type GameEndReason = 'lives' | 'bomb' | 'timeout';
 
 export interface GameStore {
   status: GameState;
   mode: GameMode;
+  themeId: string;
   endReason: GameEndReason;
   score: number;
   lives: number;
@@ -15,13 +18,11 @@ export interface GameStore {
   maxCombo: number;
   timeLeft: number;
 
-  // Session stats (reset each game, not persisted)
   fruitsSliced: number;
   bombsDodged: number;
   sliceMisses: number;
   sessionStartTime: number;
 
-  // Streak multiplier (reset each game, not persisted)
   streakCount: number;
   streakMultiplier: number;
   lastSliceTime: number;
@@ -32,6 +33,7 @@ export interface GameStore {
   bestScoreClassic: number;
   bestScoreArcade: number;
   bestScoreZen: number;
+  bestScoreSongkran: number;
 
   setStatus: (status: GameState) => void;
   setMode: (mode: GameMode) => void;
@@ -52,17 +54,12 @@ export interface GameStore {
   endGame: () => void;
 }
 
-const MODE_TIME_LIMITS: Record<GameMode, number> = {
-  classic: 0,
-  arcade: 60,
-  zen: 90,
-};
-
 export const useGameStore = create<GameStore>()(
   persist(
     (set, get) => ({
       status: 'menu',
       mode: 'classic',
+      themeId: 'default',
       endReason: 'timeout' as GameEndReason,
       score: 0,
       lives: 3,
@@ -85,9 +82,10 @@ export const useGameStore = create<GameStore>()(
       bestScoreClassic: 0,
       bestScoreArcade: 0,
       bestScoreZen: 0,
+      bestScoreSongkran: 0,
 
       setStatus: (status) => set({ status }),
-      setMode: (mode) => set({ mode }),
+      setMode: (mode) => set({ mode, themeId: getThemeModeMapping(mode) }),
 
       addScore: (points) => {
         const state = get();
@@ -96,7 +94,8 @@ export const useGameStore = create<GameStore>()(
 
         const updates: Partial<GameStore> = { score: newScore };
 
-        if (state.mode === 'classic' && points > 0) {
+        const modeConfig = getModeConfig(state.mode);
+        if (modeConfig.missCostsLife && points > 0) {
           const prevMilestone = Math.floor(prevScore / 100);
           const newMilestone = Math.floor(newScore / 100);
           if (newMilestone > prevMilestone) {
@@ -132,10 +131,8 @@ export const useGameStore = create<GameStore>()(
         set({ timeLeft: time });
         if (time <= 0) {
           const state = get();
-          if (
-            state.status === 'playing' &&
-            (state.mode === 'arcade' || state.mode === 'zen')
-          ) {
+          const modeConfig = getModeConfig(state.mode);
+          if (state.status === 'playing' && modeConfig.timerSeconds > 0) {
             state.endGame();
           }
         }
@@ -169,13 +166,14 @@ export const useGameStore = create<GameStore>()(
 
       resetGame: () => {
         const mode = get().mode;
+        const modeConfig = getModeConfig(mode);
         set({
           status: 'playing',
           score: 0,
-          lives: mode === 'classic' ? 3 : 0,
+          lives: modeConfig.lives,
           combo: 0,
           maxCombo: 0,
-          timeLeft: MODE_TIME_LIMITS[mode],
+          timeLeft: modeConfig.timerSeconds,
           fruitsSliced: 0,
           bombsDodged: 0,
           sliceMisses: 0,
@@ -194,13 +192,10 @@ export const useGameStore = create<GameStore>()(
         const state = get();
         const updates: Partial<GameStore> = { status: 'gameover' };
 
-        // Infer reason if not already set by the caller (e.g. loseLife sets 'lives').
-        // Bomb hits call endGame() directly via CollisionSystem, so we detect them by
-        // checking whether the current endReason was already stamped as 'bomb'.
-        // Timer expiry in Zen/Arcade is the remaining case.
         if (state.endReason !== 'lives' && state.endReason !== 'bomb') {
+          const modeConfig = getModeConfig(state.mode);
           updates.endReason =
-            state.mode === 'classic' ? 'lives' : 'timeout';
+            modeConfig.lives > 0 ? 'lives' : 'timeout';
         }
 
         if (state.mode === 'classic' && state.score > state.bestScoreClassic) {
@@ -209,6 +204,8 @@ export const useGameStore = create<GameStore>()(
           updates.bestScoreArcade = state.score;
         } else if (state.mode === 'zen' && state.score > state.bestScoreZen) {
           updates.bestScoreZen = state.score;
+        } else if (state.mode === 'songkran' && state.score > state.bestScoreSongkran) {
+          updates.bestScoreSongkran = state.score;
         }
 
         set(updates);
@@ -220,6 +217,7 @@ export const useGameStore = create<GameStore>()(
         bestScoreClassic: state.bestScoreClassic,
         bestScoreArcade: state.bestScoreArcade,
         bestScoreZen: state.bestScoreZen,
+        bestScoreSongkran: state.bestScoreSongkran,
         soundEnabled: state.soundEnabled,
         musicEnabled: state.musicEnabled,
       }),

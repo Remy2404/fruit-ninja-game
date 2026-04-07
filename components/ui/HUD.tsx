@@ -5,6 +5,7 @@ import { useGameStore } from '../../store/useGameStore';
 import { Heart, Volume2, VolumeX, Flame } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { AchievementToast } from './AchievementToast';
+import { getModeConfig } from '../../game/config/ModeConfig';
 
 export function HUD() {
   const {
@@ -24,8 +25,10 @@ export function HUD() {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [streakVisible, setStreakVisible] = useState(false);
 
+  const modeConfig = getModeConfig(mode);
+
   useEffect(() => {
-    if (mode === 'arcade' || mode === 'zen') {
+    if (modeConfig.timerSeconds > 0) {
       timerRef.current = setInterval(() => {
         const state = useGameStore.getState();
         if (state.status === 'playing' && state.timeLeft > 0) {
@@ -36,9 +39,8 @@ export function HUD() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [mode]);
+  }, [mode, modeConfig.timerSeconds]);
 
-  // Show streak badge for 3s after the last slice; hide immediately if streak drops below 2
   useEffect(() => {
     if (streakCount >= 2) {
       setStreakVisible(true);
@@ -49,12 +51,12 @@ export function HUD() {
     }
   }, [streakCount, lastSliceTime]);
 
-  // Danger conditions:
-  // Classic  → 1 life left
-  // Arcade/Zen → 10 seconds or fewer remaining
+  const hasLives = modeConfig.lives > 0;
+  const hasTimer = modeConfig.timerSeconds > 0;
+
   const isDanger =
-    (mode === 'classic' && lives <= 1) ||
-    ((mode === 'arcade' || mode === 'zen') && timeLeft > 0 && timeLeft <= 10);
+    (hasLives && lives <= 1) ||
+    (hasTimer && timeLeft > 0 && timeLeft <= 10);
 
   const multiplierLabel =
     streakMultiplier === 1.5 ? '×1.5' :
@@ -104,7 +106,7 @@ export function HUD() {
             {mode} mode
           </div>
 
-          {(mode === 'arcade' || mode === 'zen') && (
+          {hasTimer && (
             <motion.div
               className={`mt-2 text-2xl font-black tabular-nums ${
                 timeLeft <= 10 ? 'text-red-400' : 'text-orange-300'
@@ -181,10 +183,10 @@ export function HUD() {
             )}
           </AnimatePresence>
 
-          {/* ── Classic Lives ── */}
-          {mode === 'classic' && (
+          {/* ── Lives (for modes with lives) ── */}
+          {hasLives && (
             <div className="flex gap-1.5 mt-2">
-              {Array.from({ length: Math.max(lives, 3) }, (_, i) => i + 1).map((i) => (
+              {Array.from({ length: Math.max(lives, modeConfig.lives) }, (_, i) => i + 1).map((i) => (
                 <motion.div
                   key={i}
                   initial={{ scale: 0 }}

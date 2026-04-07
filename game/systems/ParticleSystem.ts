@@ -1,6 +1,5 @@
 import { Container, Graphics, Sprite, Assets, Text } from 'pixi.js';
 import { Pool } from '../core/Pool';
-import { FruitType, getJuiceColor, FRUIT_RADII } from '../entities/Fruit';
 
 export class Particle {
   public id: string;
@@ -101,7 +100,9 @@ export class FruitHalf {
     y: number,
     vx: number,
     vy: number,
-    type: FruitType,
+    halfAssetPath: string,
+    fullAssetPath: string,
+    radius: number,
     originalRotation: number,
     sliceAngle: number,
     isLeftHalf: boolean,
@@ -120,12 +121,15 @@ export class FruitHalf {
     this.rotation = originalRotation;
     this.angularVelocity = isLeftHalf ? -0.12 : 0.12;
 
-    const halfTexture = Assets.get(`/assets/${type}-half.svg`);
-    const outerTexture = Assets.get(`/assets/${type}.svg`);
-    this.sprite.texture = halfTexture ?? outerTexture;
-    const radius = FRUIT_RADII[type] ?? 36;
-    const scale = (radius * 2) / 100;
-    this.sprite.scale.set(scale);
+    const halfTexture = Assets.get(halfAssetPath);
+    const outerTexture = Assets.get(fullAssetPath);
+    const tex = halfTexture ?? outerTexture;
+    if (tex) {
+      this.sprite.texture = tex;
+      const texSize = Math.max(tex.width, tex.height) || 100;
+      const scale = ((radius * 2) / texSize) * 1.15;
+      this.sprite.scale.set(scale);
+    }
 
     this.maskGraphics.clear();
     this.maskGraphics.rotation = sliceAngle - originalRotation;
@@ -227,9 +231,17 @@ export class ParticleSystem {
   public halfPool: Pool<FruitHalf>;
   public textPool: Pool<FloatingText>;
   private vfxLayer: Container;
+  private explosionColors: number[];
+  private explosionScale: number;
 
-  constructor(vfxLayer: Container) {
+  constructor(
+    vfxLayer: Container,
+    explosionColors: number[] = [0xff5500, 0xaa0000],
+    explosionScale = 2.0,
+  ) {
     this.vfxLayer = vfxLayer;
+    this.explosionColors = explosionColors;
+    this.explosionScale = explosionScale;
 
     this.pool = new Pool<Particle>(
       () => new Particle(this.vfxLayer),
@@ -253,12 +265,11 @@ export class ParticleSystem {
     );
   }
 
-  public spawnFruitJuice(x: number, y: number, type: FruitType) {
-    const color = getJuiceColor(type);
+  public spawnFruitJuice(x: number, y: number, juiceColor: number) {
     const count = Math.floor(Math.random() * 8) + 12;
     for (let i = 0; i < count; i++) {
       const p = this.pool.get();
-      p.spawn(x, y, color);
+      p.spawn(x, y, juiceColor);
     }
   }
 
@@ -266,8 +277,11 @@ export class ParticleSystem {
     const count = 40;
     for (let i = 0; i < count; i++) {
       const p = this.pool.get();
-      const color = Math.random() > 0.5 ? 0xff5500 : 0xaa0000;
-      p.spawn(x, y, color, 2.0);
+      const color =
+        this.explosionColors[
+          Math.floor(Math.random() * this.explosionColors.length)
+        ];
+      p.spawn(x, y, color, this.explosionScale);
     }
   }
 
@@ -276,7 +290,9 @@ export class ParticleSystem {
     y: number,
     vx: number,
     vy: number,
-    type: FruitType,
+    halfAssetPath: string,
+    fullAssetPath: string,
+    radius: number,
     rotation: number,
     sliceDx: number,
     sliceDy: number,
@@ -284,10 +300,10 @@ export class ParticleSystem {
     const sliceAngle = Math.atan2(sliceDy, sliceDx);
 
     const leftHalf = this.halfPool.get();
-    leftHalf.spawn(x, y, vx, vy, type, rotation, sliceAngle, true);
+    leftHalf.spawn(x, y, vx, vy, halfAssetPath, fullAssetPath, radius, rotation, sliceAngle, true);
 
     const rightHalf = this.halfPool.get();
-    rightHalf.spawn(x, y, vx, vy, type, rotation, sliceAngle, false);
+    rightHalf.spawn(x, y, vx, vy, halfAssetPath, fullAssetPath, radius, rotation, sliceAngle, false);
   }
 
   public spawnFloatingText(

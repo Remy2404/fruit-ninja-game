@@ -1,13 +1,15 @@
 import { InputSystem } from './InputSystem';
 import { Pool } from '../core/Pool';
-import { Fruit, getJuiceColor, FRUIT_BASE_SCORES } from '../entities/Fruit';
+import { Fruit } from '../entities/Fruit';
 import { Bomb } from '../entities/Bomb';
 import { lineToCircleIntersection } from '../utils/PhysicsMath';
 import { ParticleSystem } from './ParticleSystem';
 import { JuiceSplashSystem } from './JuiceSplashSystem';
+import { ScreenFeedbackSystem } from './ScreenFeedbackSystem';
 import { audioManager } from './AudioManager';
 import { useGameStore } from '../../store/useGameStore';
 import { useAchievementStore } from '../../store/useAchievementStore';
+import type { ModeConfig } from '../config/ModeConfig';
 
 export class CollisionSystem {
   private inputSystem: InputSystem;
@@ -15,6 +17,8 @@ export class CollisionSystem {
   private bombPool: Pool<Bomb>;
   private particleSystem: ParticleSystem;
   private juiceSplashSystem: JuiceSplashSystem;
+  private screenFeedback: ScreenFeedbackSystem | null;
+  private modeConfig: ModeConfig;
 
   private slicedThisStroke: string[] = [];
   private lastSlicePoint = { x: 0, y: 0 };
@@ -25,12 +29,16 @@ export class CollisionSystem {
     bombPool: Pool<Bomb>,
     particleSystem: ParticleSystem,
     juiceSplashSystem: JuiceSplashSystem,
+    modeConfig: ModeConfig,
+    screenFeedback: ScreenFeedbackSystem | null = null,
   ) {
     this.inputSystem = inputSystem;
     this.fruitPool = fruitPool;
     this.bombPool = bombPool;
     this.particleSystem = particleSystem;
     this.juiceSplashSystem = juiceSplashSystem;
+    this.modeConfig = modeConfig;
+    this.screenFeedback = screenFeedback;
   }
 
   public update(_dt: number) {
@@ -127,24 +135,23 @@ export class CollisionSystem {
       fruit.y,
       fruit.vx,
       fruit.vy,
-      fruit.type,
+      fruit.halfAssetPath,
+      fruit.assetPath,
+      fruit.radius,
       fruit.rotation,
       sliceDx,
       sliceDy,
     );
 
-    this.particleSystem.spawnFruitJuice(fruit.x, fruit.y, fruit.type);
-
-    const juiceColor = getJuiceColor(fruit.type);
-    this.juiceSplashSystem.spawn(fruit.x, fruit.y, juiceColor);
+    this.particleSystem.spawnFruitJuice(fruit.x, fruit.y, fruit.juiceColor);
+    this.juiceSplashSystem.spawn(fruit.x, fruit.y, fruit.juiceColor);
 
     audioManager.playPitchShifted('slice', 0.85, 1.15);
     audioManager.playPitchShifted('splat', 0.9, 1.1);
 
-    // Record slice and retrieve the active multiplier atomically
     const multiplier = useGameStore.getState().recordSlice();
 
-    const tierScore = FRUIT_BASE_SCORES[fruit.type];
+    const tierScore = fruit.baseScore;
     const basePoints = fruit.isCritical ? tierScore * 5 : tierScore;
     const finalPoints = Math.round(basePoints * multiplier);
 
@@ -189,21 +196,23 @@ export class CollisionSystem {
     this.particleSystem.spawnExplosion(bomb.x, bomb.y);
     audioManager.play('bomb');
 
-    // Hitting a bomb always resets the streak — raises the stakes
+    if (this.screenFeedback) {
+      this.screenFeedback.triggerBombFeedback();
+    }
+
     useGameStore.getState().resetStreak();
 
     const store = useGameStore.getState();
-    const mode = store.mode;
 
-    if (mode === 'classic') {
+    if (this.modeConfig.bombEndsGame) {
       useGameStore.setState({ endReason: 'bomb' });
       store.endGame();
-    } else if (mode === 'arcade') {
-      store.addScore(-10);
+    } else if (this.modeConfig.bombScorePenalty !== 0) {
+      store.addScore(this.modeConfig.bombScorePenalty);
       this.particleSystem.spawnFloatingText(
         bomb.x,
         bomb.y - 20,
-        '-10',
+        `${this.modeConfig.bombScorePenalty}`,
         30,
         0xff3333,
       );

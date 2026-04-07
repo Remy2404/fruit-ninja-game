@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Sprite, Texture, Assets } from 'pixi.js';
+import { Application, Container, Assets } from 'pixi.js';
 import { useGameStore } from '../../store/useGameStore';
 import { useAchievementStore } from '../../store/useAchievementStore';
 import { InputSystem } from '../systems/InputSystem';
@@ -6,57 +6,16 @@ import { ParticleSystem } from '../systems/ParticleSystem';
 import { SpawnerSystem } from '../systems/SpawnerSystem';
 import { CollisionSystem } from '../systems/CollisionSystem';
 import { JuiceSplashSystem } from '../systems/JuiceSplashSystem';
+import { BackgroundSystem } from '../systems/BackgroundSystem';
+import { ScreenFeedbackSystem } from '../systems/ScreenFeedbackSystem';
 import { audioManager } from '../systems/AudioManager';
 import { Pool } from './Pool';
 import { Fruit } from '../entities/Fruit';
 import { Bomb } from '../entities/Bomb';
-
-const ASSET_PATHS = [
-  '/assets/bg.png',
-  // Whole fruits
-  '/assets/watermelon.svg',
-  '/assets/apple.svg',
-  '/assets/orange.svg',
-  '/assets/coconut.svg',
-  '/assets/banana.svg',
-  '/assets/pineapple.svg',
-  '/assets/strawberry.svg',
-  '/assets/cherry.svg',
-  '/assets/grape.svg',
-  '/assets/blueberry.svg',
-  '/assets/raspberry.svg',
-  '/assets/peach.svg',
-  '/assets/plum.svg',
-  '/assets/kiwi.svg',
-  '/assets/lemon.svg',
-  '/assets/lime.svg',
-  '/assets/mango.svg',
-  '/assets/dragonfruit.svg',
-  '/assets/starfruit.svg',
-  '/assets/pomegranate.svg',
-  '/assets/bomb.svg',
-  // Sliced halves
-  '/assets/watermelon-half.svg',
-  '/assets/apple-half.svg',
-  '/assets/orange-half.svg',
-  '/assets/coconut-half.svg',
-  '/assets/banana-half.svg',
-  '/assets/pineapple-half.svg',
-  '/assets/strawberry-half.svg',
-  '/assets/cherry-half.svg',
-  '/assets/grape-half.svg',
-  '/assets/blueberry-half.svg',
-  '/assets/raspberry-half.svg',
-  '/assets/peach-half.svg',
-  '/assets/plum-half.svg',
-  '/assets/kiwi-half.svg',
-  '/assets/lemon-half.svg',
-  '/assets/lime-half.svg',
-  '/assets/mango-half.svg',
-  '/assets/dragonfruit-half.svg',
-  '/assets/starfruit-half.svg',
-  '/assets/pomegranate-half.svg',
-];
+import { getModeConfig } from '../config/ModeConfig';
+import { getThemeConfig, buildAssetManifest } from '../config/ThemeConfig';
+import type { ModeConfig } from '../config/ModeConfig';
+import type { ThemeConfig } from '../config/ThemeConfig';
 
 export class FruitNinjaGame {
   private app: Application;
@@ -76,12 +35,17 @@ export class FruitNinjaGame {
   private spawnerSystem: SpawnerSystem | null = null;
   private collisionSystem: CollisionSystem | null = null;
   private juiceSplashSystem: JuiceSplashSystem | null = null;
+  private backgroundSystem: BackgroundSystem | null = null;
+  private screenFeedback: ScreenFeedbackSystem | null = null;
 
   private fruitPool: Pool<Fruit> | null = null;
   private bombPool: Pool<Bomb> | null = null;
 
   private gravity = 0.25;
   private prevStatus = '';
+
+  private modeConfig: ModeConfig;
+  private themeConfig: ThemeConfig;
 
   constructor(canvasWrapper: HTMLElement) {
     this.canvasWrapper = canvasWrapper;
@@ -91,6 +55,10 @@ export class FruitNinjaGame {
     this.fruitLayer = new Container();
     this.vfxLayer = new Container();
     this.trailLayer = new Container();
+
+    const state = useGameStore.getState();
+    this.modeConfig = getModeConfig(state.mode);
+    this.themeConfig = getThemeConfig(state.themeId);
   }
 
   public async init() {
@@ -101,7 +69,7 @@ export class FruitNinjaGame {
     await this.app.init({
       width,
       height,
-      backgroundColor: 0x1a0e06,
+      backgroundColor: this.themeConfig.backgroundColor,
       antialias: true,
       resolution: Math.min(window.devicePixelRatio, 2),
       autoDensity: true,
@@ -112,7 +80,11 @@ export class FruitNinjaGame {
       return;
     }
 
-    await Assets.load(ASSET_PATHS);
+    // Store app reference for BackgroundSystem water texture generation
+    (globalThis as Record<string, unknown>).__pixiApp = this.app;
+
+    const assetManifest = buildAssetManifest(this.themeConfig);
+    await Assets.load(assetManifest);
 
     if (this.isDestroyed) {
       try { this.app.destroy(true); } catch { /* race */ }
@@ -127,12 +99,19 @@ export class FruitNinjaGame {
     this.app.stage.addChild(this.vfxLayer);
     this.app.stage.addChild(this.trailLayer);
 
-    this.drawBackground();
+    this.backgroundSystem = new BackgroundSystem(this.backgroundLayer, this.themeConfig);
+    this.backgroundSystem.init(width, height);
+
+    this.screenFeedback = new ScreenFeedbackSystem(this.app);
 
     window.addEventListener('resize', this.onResize);
 
     this.inputSystem = new InputSystem(this.app, this.trailLayer);
-    this.particleSystem = new ParticleSystem(this.vfxLayer);
+    this.particleSystem = new ParticleSystem(
+      this.vfxLayer,
+      this.themeConfig.particleStyle.colors,
+      this.themeConfig.particleStyle.scale,
+    );
     this.juiceSplashSystem = new JuiceSplashSystem(this.splashLayer);
 
     this.fruitPool = new Pool<Fruit>(
@@ -156,6 +135,8 @@ export class FruitNinjaGame {
       width,
       height,
       this.gravity,
+      this.themeConfig,
+      this.modeConfig,
     );
 
     this.collisionSystem = new CollisionSystem(
@@ -164,6 +145,8 @@ export class FruitNinjaGame {
       this.bombPool,
       this.particleSystem,
       this.juiceSplashSystem,
+      this.modeConfig,
+      this.screenFeedback,
     );
 
     this.app.ticker.add(this.update);
@@ -181,8 +164,12 @@ export class FruitNinjaGame {
     this.inputSystem?.destroy();
     this.particleSystem?.destroy();
     this.juiceSplashSystem?.destroy();
+    this.backgroundSystem?.destroy();
+    this.screenFeedback?.destroy();
     this.fruitPool?.reset();
     this.bombPool?.reset();
+
+    delete (globalThis as Record<string, unknown>).__pixiApp;
 
     if (this.isInitialized && this.app.renderer) {
       try {
@@ -197,30 +184,10 @@ export class FruitNinjaGame {
     if (this.isDestroyed || !this.canvasWrapper || !this.app.renderer) return;
     const { width, height } = this.canvasWrapper.getBoundingClientRect();
     this.app.renderer.resize(width, height);
-    this.drawBackground();
+    this.backgroundSystem?.resize(width, height);
     this.spawnerSystem?.resize(width, height);
+    this.screenFeedback?.resize();
   };
-
-  private drawBackground() {
-    this.backgroundLayer.removeChildren();
-    const { width, height } = this.app.renderer;
-
-    const texture = Assets.get<Texture>('/assets/bg.png');
-    if (!texture) return;
-
-    const sprite = new Sprite(texture);
-
-    const scaleX = width / texture.width;
-    const scaleY = height / texture.height;
-    const coverScale = Math.max(scaleX, scaleY);
-
-    sprite.width = texture.width * coverScale;
-    sprite.height = texture.height * coverScale;
-    sprite.x = (width - sprite.width) / 2;
-    sprite.y = (height - sprite.height) / 2;
-
-    this.backgroundLayer.addChild(sprite);
-  }
 
   private update = () => {
     if (this.isDestroyed || !this.isInitialized) return;
@@ -232,6 +199,8 @@ export class FruitNinjaGame {
     this.inputSystem!.update(dt);
     this.particleSystem!.update(dt, this.gravity);
     this.juiceSplashSystem!.update(dt);
+    this.backgroundSystem?.update(dt);
+    this.screenFeedback?.update(dt);
 
     if (status === 'playing' && this.prevStatus !== 'playing') {
       this.onGameStart();
@@ -258,10 +227,12 @@ export class FruitNinjaGame {
         if (!fruit.isSliced) {
           const currentState = useGameStore.getState();
           currentState.recordMiss();
-          if (currentState.mode === 'classic') {
+
+          if (this.modeConfig.missCostsLife) {
             currentState.loseLife();
             audioManager.play('miss');
           }
+
           const postMissState = useGameStore.getState();
           useAchievementStore.getState().checkAndUnlock({
             fruitsSliced: postMissState.fruitsSliced,

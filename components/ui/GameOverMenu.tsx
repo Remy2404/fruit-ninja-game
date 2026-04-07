@@ -18,6 +18,7 @@ import { useGameStore } from '../../store/useGameStore';
 import { useAchievementStore } from '../../store/useAchievementStore';
 import { ACHIEVEMENT_META } from './achievementConfig';
 import type { GameMode, GameEndReason } from '../../store/useGameStore';
+import { getModeConfig } from '../../game/config/ModeConfig';
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -54,10 +55,10 @@ function StatCard({ icon: Icon, iconColor, label, value }: StatCardProps) {
   );
 }
 
-// Maps every possible (mode × endReason) combination to a distinct visual identity.
 function resolveEndState(mode: GameMode, reason: GameEndReason) {
-  // Timer ran out in Zen or Arcade → the player completed the round
-  if (reason === 'timeout' && (mode === 'zen' || mode === 'arcade')) {
+  const modeConfig = getModeConfig(mode);
+
+  if (reason === 'timeout' && modeConfig.timerSeconds > 0) {
     return {
       icon: Trophy,
       iconBg: 'rgba(255,215,9,0.12)',
@@ -71,7 +72,6 @@ function resolveEndState(mode: GameMode, reason: GameEndReason) {
     };
   }
 
-  // Bomb killed the player in Classic
   if (reason === 'bomb') {
     return {
       icon: Bomb,
@@ -79,14 +79,15 @@ function resolveEndState(mode: GameMode, reason: GameEndReason) {
       iconBorder: 'rgba(255,50,50,0.28)',
       iconGlow: 'rgba(255,50,50,0.18)',
       iconColor: '#ff7162',
-      heading: 'KABOOM!',
-      headingGradient: 'linear-gradient(135deg, #ff7162, #ff9f4a)',
+      heading: mode === 'songkran' ? 'POT SMASHED!' : 'KABOOM!',
+      headingGradient: mode === 'songkran'
+        ? 'linear-gradient(135deg, #d4a017, #ff9f4a)'
+        : 'linear-gradient(135deg, #ff7162, #ff9f4a)',
       topGlow: 'linear-gradient(to right, transparent, #ff7162, transparent)',
       isWin: false,
     };
   }
 
-  // Default: lives ran out
   return {
     icon: Skull,
     iconBg: 'rgba(255,60,60,0.12)',
@@ -108,6 +109,7 @@ export function GameOverMenu() {
     bestScoreClassic,
     bestScoreArcade,
     bestScoreZen,
+    bestScoreSongkran,
     fruitsSliced,
     bombsDodged,
     sliceMisses,
@@ -117,9 +119,13 @@ export function GameOverMenu() {
 
   const { sessionUnlocks, clearSessionUnlocks, checkAndUnlock } = useAchievementStore();
 
+  const modeConfig = getModeConfig(mode);
+
   const bestScore =
-    mode === 'classic' ? bestScoreClassic :
-    mode === 'arcade'  ? bestScoreArcade  : bestScoreZen;
+    mode === 'classic'   ? bestScoreClassic  :
+    mode === 'arcade'    ? bestScoreArcade   :
+    mode === 'songkran'  ? bestScoreSongkran :
+    bestScoreZen;
 
   const total = fruitsSliced + sliceMisses;
   const accuracy = total > 0 ? Math.round((fruitsSliced / total) * 100) : 100;
@@ -128,7 +134,6 @@ export function GameOverMenu() {
   const end = resolveEndState(mode, endReason);
   const EndIcon = end.icon;
 
-  // End-game achievement check (precision, flawless, zen_master, etc.)
   useEffect(() => {
     const state = useGameStore.getState();
     checkAndUnlock({
@@ -172,7 +177,7 @@ export function GameOverMenu() {
             boxShadow: `0 0 60px ${end.iconGlow}, 0 24px 64px rgba(0,0,0,0.7)`,
           }}
         >
-          {/* Top glow accent — color-matched per end state */}
+          {/* Top glow accent */}
           <div
             className="absolute top-0 left-1/4 right-1/4 h-px rounded-full"
             style={{ background: end.topGlow }}
@@ -258,10 +263,10 @@ export function GameOverMenu() {
             transition={{ delay: 0.35 }}
           >
             <StatCard icon={Swords} iconColor="#ff9f4a" label="Sliced" value={String(fruitsSliced)} />
-            {mode === 'zen' ? (
+            {!modeConfig.allowBombs ? (
               <StatCard icon={Leaf} iconColor="#4ade80" label="No Bombs" value="Zen" />
-            ) : mode === 'arcade' ? (
-              <StatCard icon={Timer} iconColor="#38bdf8" label="Mode" value="Arcade" />
+            ) : modeConfig.timerSeconds > 0 ? (
+              <StatCard icon={Timer} iconColor="#38bdf8" label="Mode" value={modeConfig.title} />
             ) : (
               <StatCard icon={Bomb} iconColor="#ff7162" label="Dodged" value={String(bombsDodged)} />
             )}

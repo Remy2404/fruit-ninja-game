@@ -1,35 +1,10 @@
-import { Fruit, FruitType } from '../entities/Fruit';
+import { Fruit } from '../entities/Fruit';
 import { Bomb } from '../entities/Bomb';
 import { Pool } from '../core/Pool';
 import { useGameStore } from '../../store/useGameStore';
 import { Container } from 'pixi.js';
-
-// Weighted spawn pool — Tier 1 (common) appears 3×, Tier 2 twice, Tier 3 (exotic/large) once.
-const ALL_FRUIT_TYPES: FruitType[] = [
-  // Tier 1 — 1 pt each (appears 3× for higher frequency)
-  'strawberry', 'strawberry', 'strawberry',
-  'cherry',     'cherry',     'cherry',
-  'grape',      'grape',      'grape',
-  'blueberry',  'blueberry',  'blueberry',
-  'raspberry',  'raspberry',  'raspberry',
-  'apple',      'apple',      'apple',
-  // Tier 2 — 2 pts each (appears 2×)
-  'orange',  'orange',
-  'peach',   'peach',
-  'plum',    'plum',
-  'kiwi',    'kiwi',
-  'lemon',   'lemon',
-  'lime',    'lime',
-  'mango',   'mango',
-  // Tier 3 — 3 pts each (appears once — rarer)
-  'watermelon',
-  'pineapple',
-  'coconut',
-  'banana',
-  'dragonfruit',
-  'starfruit',
-  'pomegranate',
-];
+import type { ThemeConfig, SliceableObjectDef } from '../config/ThemeConfig';
+import type { ModeConfig } from '../config/ModeConfig';
 
 export class SpawnerSystem {
   private fruitPool: Pool<Fruit>;
@@ -40,10 +15,15 @@ export class SpawnerSystem {
   private screenHeight: number;
 
   private spawnTimer = 0;
-  private spawnInterval = 1600;
+  private spawnInterval: number;
   private waveCount = 0;
 
   private gravity: number;
+  private theme: ThemeConfig;
+  private modeConfig: ModeConfig;
+
+  private weightedObjects: SliceableObjectDef[] = [];
+  private totalWeight = 0;
 
   constructor(
     fruitPool: Pool<Fruit>,
@@ -52,6 +32,8 @@ export class SpawnerSystem {
     width: number,
     height: number,
     gravity: number,
+    theme: ThemeConfig,
+    modeConfig: ModeConfig,
   ) {
     this.fruitPool = fruitPool;
     this.bombPool = bombPool;
@@ -59,6 +41,30 @@ export class SpawnerSystem {
     this.screenWidth = width;
     this.screenHeight = height;
     this.gravity = gravity;
+    this.theme = theme;
+    this.modeConfig = modeConfig;
+    this.spawnInterval = modeConfig.spawnIntervalMs;
+
+    this.buildWeightedPool();
+  }
+
+  private buildWeightedPool() {
+    this.weightedObjects = [];
+    this.totalWeight = 0;
+    for (let i = 0; i < this.theme.objects.length; i++) {
+      const obj = this.theme.objects[i];
+      this.totalWeight += obj.weight;
+      this.weightedObjects.push(obj);
+    }
+  }
+
+  private pickRandomObject(): SliceableObjectDef {
+    let roll = Math.random() * this.totalWeight;
+    for (let i = 0; i < this.weightedObjects.length; i++) {
+      roll -= this.weightedObjects[i].weight;
+      if (roll <= 0) return this.weightedObjects[i];
+    }
+    return this.weightedObjects[this.weightedObjects.length - 1];
   }
 
   public resize(width: number, height: number) {
@@ -68,7 +74,7 @@ export class SpawnerSystem {
 
   public resetTimers() {
     this.spawnTimer = 0;
-    this.spawnInterval = 1600;
+    this.spawnInterval = this.modeConfig.spawnIntervalMs;
     this.waveCount = 0;
   }
 
@@ -80,15 +86,17 @@ export class SpawnerSystem {
       this.spawnTimer = 0;
       this.waveCount++;
 
-      const state = useGameStore.getState();
-      const score = state.score;
-      this.spawnInterval = Math.max(600, 1600 - score * 8 - this.waveCount * 3);
+      const score = useGameStore.getState().score;
+      const minInterval = Math.max(this.modeConfig.spawnIntervalMs * 0.375, 500);
+      this.spawnInterval = Math.max(
+        minInterval,
+        this.modeConfig.spawnIntervalMs - score * 8 - this.waveCount * 3,
+      );
     }
   }
 
   private spawnWave() {
     const state = useGameStore.getState();
-    const mode = state.mode;
     const score = state.score;
 
     let maxGroupSize = 2;
@@ -103,7 +111,7 @@ export class SpawnerSystem {
 
     for (let i = 0; i < count; i++) {
       const bombChance =
-        mode === 'zen'
+        !this.modeConfig.allowBombs
           ? 0
           : Math.min(0.25, 0.06 + score * 0.001 + this.waveCount * 0.002);
       const isBomb = Math.random() < bombChance;
@@ -124,15 +132,14 @@ export class SpawnerSystem {
         if (!b.container.parent) {
           this.fruitLayer.addChild(b.container);
         }
-        b.spawn(spawnX, spawnY, vx, vy);
+        b.spawn(spawnX, spawnY, vx, vy, this.theme.bombAsset, this.theme.bombRadius);
       } else {
-        const type =
-          ALL_FRUIT_TYPES[Math.floor(Math.random() * ALL_FRUIT_TYPES.length)];
+        const objectDef = this.pickRandomObject();
         const f = this.fruitPool.get();
         if (!f.container.parent) {
           this.fruitLayer.addChild(f.container);
         }
-        f.spawn(spawnX, spawnY, vx, vy, type);
+        f.spawn(spawnX, spawnY, vx, vy, objectDef);
       }
     }
   }
