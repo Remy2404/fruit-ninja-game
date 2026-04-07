@@ -153,7 +153,7 @@ export class CollisionSystem {
 
     const tierScore = fruit.baseScore;
     const basePoints = fruit.isCritical ? tierScore * 5 : tierScore;
-    const finalPoints = Math.round(basePoints * multiplier);
+    const finalPoints = Math.round(basePoints * multiplier * this.modeConfig.scoreMultiplier);
 
     let textContent: string;
     let textColor: number;

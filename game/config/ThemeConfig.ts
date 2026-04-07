@@ -21,6 +21,7 @@ export interface ThemeConfig {
   hasWaterOverlay: boolean;
   hasFloatingParticles: boolean;
   backgroundColor: number;
+  blurStrength?: number;
 }
 
 const DEFAULT_OBJECTS: SliceableObjectDef[] = [
@@ -83,6 +84,7 @@ const THEME_CONFIGS: Record<string, ThemeConfig> = {
     hasWaterOverlay: true,
     hasFloatingParticles: true,
     backgroundColor: 0x0d2137,
+    blurStrength: 1,
   },
 };
 
@@ -100,7 +102,7 @@ export function buildAssetManifest(theme: ThemeConfig): string[] {
 }
 
 export function getThemeModeMapping(modeId: string): string {
-  if (modeId === 'songkran') return 'khmerSongkran';
+  if (modeId === 'songkran' || modeId === 'frenzy') return 'khmerSongkran';
   return 'default';
 }
 

@@ -68,7 +68,7 @@ export class Bomb {
     if (texture) {
       this.sprite.texture = texture;
       const texSize = Math.max(texture.width, texture.height) || 100;
-      const scale = ((this.radius * 2) / texSize) * 3;
+      const scale = ((this.radius * 2) / texSize) * 1.25;
       this.sprite.scale.set(scale);
     }
   }

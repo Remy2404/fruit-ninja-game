@@ -11,7 +11,7 @@ const MODES: {
   gradient: string;
   glow: string;
   border: string;
-  bestKey: 'bestScoreClassic' | 'bestScoreArcade' | 'bestScoreZen' | 'bestScoreSongkran';
+  bestKey: 'bestScoreClassic' | 'bestScoreArcade' | 'bestScoreZen' | 'bestScoreSongkran' | 'bestScoreFrenzy';
   badge: string;
 }[] = [
   {
@@ -58,6 +58,17 @@ const MODES: {
     bestKey: 'bestScoreSongkran',
     badge: 'bg-amber-500/15 text-amber-400',
   },
+  {
+    id: 'frenzy',
+    title: 'FRENZY',
+    desc: '60 sec. Bombs = -10 pts.',
+    detail: 'Khmer scoring frenzy! 1.5× pts.',
+    gradient: 'from-fuchsia-500 to-purple-600',
+    glow: 'rgba(192,38,211,0.45)',
+    border: 'border-fuchsia-500/40 hover:border-fuchsia-400',
+    bestKey: 'bestScoreFrenzy',
+    badge: 'bg-fuchsia-500/15 text-fuchsia-400',
+  },
 ];
 
 export function MainMenu() {
@@ -99,7 +110,7 @@ export function MainMenu() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15 }}
-        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-5 max-w-6xl px-4 w-full"
+        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 md:gap-5 max-w-7xl px-4 w-full"
       >
         {MODES.map((m, idx) => (
           <motion.button

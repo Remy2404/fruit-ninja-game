@@ -1,4 +1,4 @@
-import { Container, Sprite, Assets, Graphics, Texture, TilingSprite } from 'pixi.js';
+import { Container, Sprite, Assets, Graphics, Texture, TilingSprite, BlurFilter } from 'pixi.js';
 import type { ThemeConfig } from '../config/ThemeConfig';
 
 interface FloatingParticle {
@@ -65,6 +65,15 @@ export class BackgroundSystem {
 
     this.bgSprite = new Sprite(texture);
     this.fitCover(this.bgSprite, texture);
+
+    if (this.theme.blurStrength && this.theme.blurStrength > 0) {
+      const blurFilter = new BlurFilter({
+        strength: this.theme.blurStrength,
+        quality: 4,
+      });
+      this.bgSprite.filters = [blurFilter];
+    }
+
     this.container.addChildAt(this.bgSprite, 0);
   }
 

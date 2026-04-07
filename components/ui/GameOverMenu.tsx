@@ -65,7 +65,7 @@ function resolveEndState(mode: GameMode, reason: GameEndReason) {
       iconBorder: 'rgba(255,215,9,0.30)',
       iconGlow: 'rgba(255,215,9,0.18)',
       iconColor: '#ffd709',
-      heading: mode === 'zen' ? 'Zen Complete' : 'Time\'s Up!',
+      heading: mode === 'zen' ? 'Zen Complete' : mode === 'frenzy' ? 'FRENZY OVER!' : 'Time\'s Up!',
       headingGradient: 'linear-gradient(135deg, #ffd709, #ff9f4a)',
       topGlow: 'linear-gradient(to right, transparent, #ffd709, transparent)',
       isWin: true,
@@ -110,6 +110,7 @@ export function GameOverMenu() {
     bestScoreArcade,
     bestScoreZen,
     bestScoreSongkran,
+    bestScoreFrenzy,
     fruitsSliced,
     bombsDodged,
     sliceMisses,
@@ -125,6 +126,7 @@ export function GameOverMenu() {
     mode === 'classic'   ? bestScoreClassic  :
     mode === 'arcade'    ? bestScoreArcade   :
     mode === 'songkran'  ? bestScoreSongkran :
+    mode === 'frenzy'    ? bestScoreFrenzy   :
     bestScoreZen;
 
   const total = fruitsSliced + sliceMisses;

@@ -4,7 +4,7 @@ import { getModeConfig } from '../game/config/ModeConfig';
 import { getThemeModeMapping } from '../game/config/ThemeConfig';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover';
-export type GameMode = 'classic' | 'arcade' | 'zen' | 'songkran';
+export type GameMode = 'classic' | 'arcade' | 'zen' | 'songkran' | 'frenzy';
 export type GameEndReason = 'lives' | 'bomb' | 'timeout';
 
 export interface GameStore {
@@ -34,6 +34,7 @@ export interface GameStore {
   bestScoreArcade: number;
   bestScoreZen: number;
   bestScoreSongkran: number;
+  bestScoreFrenzy: number;
 
   setStatus: (status: GameState) => void;
   setMode: (mode: GameMode) => void;
@@ -83,6 +84,7 @@ export const useGameStore = create<GameStore>()(
       bestScoreArcade: 0,
       bestScoreZen: 0,
       bestScoreSongkran: 0,
+      bestScoreFrenzy: 0,
 
       setStatus: (status) => set({ status }),
       setMode: (mode) => set({ mode, themeId: getThemeModeMapping(mode) }),
@@ -206,6 +208,8 @@ export const useGameStore = create<GameStore>()(
           updates.bestScoreZen = state.score;
         } else if (state.mode === 'songkran' && state.score > state.bestScoreSongkran) {
           updates.bestScoreSongkran = state.score;
+        } else if (state.mode === 'frenzy' && state.score > state.bestScoreFrenzy) {
+          updates.bestScoreFrenzy = state.score;
         }
 
         set(updates);
@@ -218,6 +222,7 @@ export const useGameStore = create<GameStore>()(
         bestScoreArcade: state.bestScoreArcade,
         bestScoreZen: state.bestScoreZen,
         bestScoreSongkran: state.bestScoreSongkran,
+        bestScoreFrenzy: state.bestScoreFrenzy,
         soundEnabled: state.soundEnabled,
         musicEnabled: state.musicEnabled,
       }),

@@ -62,6 +62,18 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     allowBombs: true,
     scoreMultiplier: 1,
   },
+  frenzy: {
+    id: 'frenzy',
+    title: 'FRENZY',
+    lives: 0,
+    timerSeconds: 60,
+    bombEndsGame: false,
+    missCostsLife: false,
+    bombScorePenalty: -10,
+    spawnIntervalMs: 900,
+    allowBombs: true,
+    scoreMultiplier: 1.5,
+  },
 };
 
 export function getModeConfig(mode: GameMode): ModeConfig {
