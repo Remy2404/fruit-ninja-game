@@ -1,31 +1,36 @@
-import { InputSystem } from './InputSystem';
-import { Pool } from '../core/Pool';
-import { Fruit } from '../entities/Fruit';
-import { Bomb } from '../entities/Bomb';
-import { lineToCircleIntersection } from '../utils/PhysicsMath';
-import { ParticleSystem } from './ParticleSystem';
-import { JuiceSplashSystem } from './JuiceSplashSystem';
-import { ScreenFeedbackSystem } from './ScreenFeedbackSystem';
-import { audioManager } from './AudioManager';
-import { useGameStore } from '../../store/useGameStore';
 import { useAchievementStore } from '../../store/useAchievementStore';
-import { PrecisionSystem } from './PrecisionSystem';
+import { useGameStore } from '../../store/useGameStore';
 import type { ModeConfig } from '../config/ModeConfig';
+import { Pool } from '../core/Pool';
+import { Bomb } from '../entities/Bomb';
+import { Fruit } from '../entities/Fruit';
+import { lineToCircleIntersection } from '../utils/PhysicsMath';
+import { audioManager } from './AudioManager';
+import { ComboTracker, type ComboResolution } from './ComboTracker';
+import type { SwipeSegment } from './InputSystem';
+import { ParticleSystem } from './ParticleSystem';
+import { PrecisionSystem } from './PrecisionSystem';
+import { ScreenFeedbackSystem } from './ScreenFeedbackSystem';
+import { JuiceSplashSystem } from './JuiceSplashSystem';
+import { calculateComboBonus, calculateFruitSliceScore } from '../rules/scoring';
+
+export interface SwipeSource {
+  isSwiping: boolean;
+  consumePendingSegments: (consumer: (segment: SwipeSegment) => void) => void;
+}
 
 export class CollisionSystem {
-  private inputSystem: InputSystem;
-  private fruitPool: Pool<Fruit>;
-  private bombPool: Pool<Bomb>;
-  private particleSystem: ParticleSystem;
-  private juiceSplashSystem: JuiceSplashSystem;
-  private screenFeedback: ScreenFeedbackSystem | null;
-  private modeConfig: ModeConfig;
-
-  private slicedThisStroke: string[] = [];
-  private lastSlicePoint = { x: 0, y: 0 };
+  private readonly inputSystem: SwipeSource;
+  private readonly fruitPool: Pool<Fruit>;
+  private readonly bombPool: Pool<Bomb>;
+  private readonly particleSystem: ParticleSystem;
+  private readonly juiceSplashSystem: JuiceSplashSystem;
+  private readonly screenFeedback: ScreenFeedbackSystem | null;
+  private readonly modeConfig: ModeConfig;
+  private readonly comboTracker: ComboTracker;
 
   constructor(
-    inputSystem: InputSystem,
+    inputSystem: SwipeSource,
     fruitPool: Pool<Fruit>,
     bombPool: Pool<Bomb>,
     particleSystem: ParticleSystem,
@@ -40,55 +45,38 @@ export class CollisionSystem {
     this.juiceSplashSystem = juiceSplashSystem;
     this.modeConfig = modeConfig;
     this.screenFeedback = screenFeedback;
+    this.comboTracker = new ComboTracker(modeConfig.combo);
   }
 
-  public update(_dt: number) {
-    if (!this.inputSystem.isSwiping) {
-      if (this.slicedThisStroke.length >= 3) {
-        const count = this.slicedThisStroke.length;
-        const state = useGameStore.getState();
+  public reset() {
+    this.comboTracker.reset();
+  }
 
-        this.particleSystem.spawnFloatingText(
-          this.lastSlicePoint.x,
-          this.lastSlicePoint.y - 40,
-          `${count}x COMBO!`,
-          38,
-          0xffcc00,
-        );
+  public update() {
+    let shouldAbort = false;
 
-        let comboScore = count * 2;
-        if (this.modeConfig.enableComboOnly) {
-          comboScore = count * 5; // Re-balance for combo only mode
-        }
+    this.inputSystem.consumePendingSegments((segment) => {
+      if (shouldAbort) return;
 
-        state.addScore(comboScore);
-        state.setCombo(count);
-        audioManager.play('combo');
+      shouldAbort = this.processSegment(segment) || shouldAbort;
+    });
 
-        const afterComboState = useGameStore.getState();
-        useAchievementStore.getState().checkAndUnlock({
-          fruitsSliced: afterComboState.fruitsSliced,
-          bombsDodged: afterComboState.bombsDodged,
-          sliceMisses: afterComboState.sliceMisses,
-          maxCombo: afterComboState.maxCombo,
-          score: afterComboState.score,
-          mode: afterComboState.mode,
-          timeLeft: afterComboState.timeLeft,
-          sessionStartTime: afterComboState.sessionStartTime,
-        });
-      }
-      this.slicedThisStroke = [];
-      return;
+    if (shouldAbort) return;
+
+    const comboResolution = this.comboTracker.update(
+      this.inputSystem.isSwiping,
+      performance.now(),
+    );
+    if (comboResolution) {
+      this.applyComboResolution(comboResolution);
     }
+  }
 
-    const points = this.inputSystem.points;
-    if (points.length < 2) return;
+  private processSegment(segment: SwipeSegment): boolean {
+    const { p1, p2 } = segment;
 
-    const p1 = points[points.length - 2];
-    const p2 = points[points.length - 1];
-
-    for (let i = this.fruitPool.active.length - 1; i >= 0; i--) {
-      const fruit = this.fruitPool.active[i];
+    for (let index = this.fruitPool.active.length - 1; index >= 0; index--) {
+      const fruit = this.fruitPool.active[index];
       if (fruit.isSliced) continue;
 
       const isHit = lineToCircleIntersection(
@@ -98,16 +86,15 @@ export class CollisionSystem {
         fruit.radius + 12,
       );
 
-      if (isHit) {
-        fruit.isSliced = true;
-        this.handleFruitSlice(fruit, p1, p2);
-        this.fruitPool.release(fruit);
-      }
+      if (!isHit) continue;
+
+      fruit.isSliced = true;
+      this.handleFruitSlice(fruit, p1, p2);
+      this.fruitPool.release(fruit);
     }
 
-    for (let i = this.bombPool.active.length - 1; i >= 0; i--) {
-      const bomb = this.bombPool.active[i];
-
+    for (let index = this.bombPool.active.length - 1; index >= 0; index--) {
+      const bomb = this.bombPool.active[index];
       const isHit = lineToCircleIntersection(
         { x: p1.x, y: p1.y },
         { x: p2.x, y: p2.y },
@@ -115,11 +102,17 @@ export class CollisionSystem {
         bomb.radius + 10,
       );
 
-      if (isHit) {
-        this.handleBombSlice(bomb);
-        this.bombPool.release(bomb);
+      if (!isHit) continue;
+
+      this.handleBombSlice(bomb);
+      this.bombPool.release(bomb);
+
+      if (useGameStore.getState().status !== 'playing') {
+        return true;
       }
     }
+
+    return false;
   }
 
   private handleFruitSlice(
@@ -127,11 +120,15 @@ export class CollisionSystem {
     p1: { x: number; y: number },
     p2: { x: number; y: number },
   ) {
-    if (!this.slicedThisStroke.includes(fruit.id)) {
-      this.slicedThisStroke.push(fruit.id);
+    const comboResolution = this.comboTracker.registerSlice(
+      fruit.id,
+      fruit.x,
+      fruit.y,
+      performance.now(),
+    );
+    if (comboResolution) {
+      this.applyComboResolution(comboResolution);
     }
-
-    this.lastSlicePoint = { x: fruit.x, y: fruit.y };
 
     const sliceDx = p2.x - p1.x;
     const sliceDy = p2.y - p1.y;
@@ -148,110 +145,152 @@ export class CollisionSystem {
       sliceDx,
       sliceDy,
     );
-
     this.particleSystem.spawnFruitJuice(fruit.x, fruit.y, fruit.juiceColor);
     this.juiceSplashSystem.spawn(fruit.x, fruit.y, fruit.juiceColor);
 
     audioManager.playPitchShifted('slice', 0.85, 1.15);
     audioManager.playPitchShifted('splat', 0.9, 1.1);
 
-    const multiplier = useGameStore.getState().recordSlice();
-
-    const tierScore = fruit.baseScore;
-    let basePoints = fruit.isCritical ? tierScore * 5 : tierScore;
-
-    let precisionMult = 1;
-    if (this.modeConfig.enablePrecisionScoring) {
-      precisionMult = PrecisionSystem.calculatePrecisionMultiplier(fruit, p1, p2);
-      basePoints *= precisionMult;
-    }
-
-    const isGold = fruit.variant === 'gold';
-    const isCursed = fruit.variant === 'cursed';
-
-    if (isGold) basePoints += 5;
-    if (isCursed) basePoints -= 10;
-
-    const finalPoints = this.modeConfig.enableComboOnly 
-      ? 0 
-      : Math.round(basePoints * multiplier * this.modeConfig.scoreMultiplier);
-
-    let textContent: string;
-    let textColor: number;
-
-    if (this.modeConfig.enableComboOnly) {
-      textContent = "SLICE!";
-      textColor = 0xcccccc;
-    } else if (isCursed) {
-      textContent = `CURSED! ${finalPoints}`;
-      textColor = 0x8800ff;
-    } else if (isGold) {
-      textContent = `GOLD! +${finalPoints}`;
-      textColor = 0xffd700;
-    } else if (precisionMult >= 2.0) {
-      textContent = `PERFECT! +${finalPoints}`;
-      textColor = 0x00ffff;
-    } else if (precisionMult <= 0.5) {
-      textContent = `SLOPPY +${finalPoints}`;
-      textColor = 0xaaaaaa;
-    } else if (fruit.isCritical) {
-      textContent = multiplier > 1 ? `CRITICAL! +${finalPoints}` : `CRITICAL +${basePoints}`;
-      textColor = 0xff4444;
-    } else if (multiplier > 1) {
-      textContent = finalPoints >= 0 ? `+${finalPoints}` : `${finalPoints}`;
-      textColor = 0xff9f4a;
-    } else {
-      textContent = finalPoints >= 0 ? `+${finalPoints}` : `${finalPoints}`;
-      textColor = finalPoints === 1 ? 0xffffff : finalPoints === 2 ? 0xffd709 : 0xff9f4a;
-    }
+    const streakMultiplier = useGameStore.getState().recordSlice();
+    const precisionMultiplier = this.modeConfig.precision.enabled
+      ? PrecisionSystem.calculatePrecisionMultiplier(fruit, p1, p2, this.modeConfig)
+      : 1;
+    const scoreBreakdown = calculateFruitSliceScore({
+      baseScore: fruit.baseScore,
+      isCritical: fruit.isCritical,
+      precisionMultiplier,
+      streakMultiplier,
+      modeConfig: this.modeConfig,
+      variant: fruit.variant,
+    });
+    const finalPoints = this.modeConfig.combo.comboOnly ? 0 : scoreBreakdown.finalPoints;
 
     this.particleSystem.spawnFloatingText(
       fruit.x,
       fruit.y - 10,
-      textContent,
+      this.buildSliceText(fruit, finalPoints, precisionMultiplier),
       fruit.isCritical ? 32 : 24,
-      textColor,
+      this.buildSliceTextColor(fruit, precisionMultiplier, finalPoints),
     );
 
     useGameStore.getState().addScore(finalPoints);
+    this.unlockAchievementsFromState();
+  }
 
-    const postSliceState = useGameStore.getState();
-    useAchievementStore.getState().checkAndUnlock({
-      fruitsSliced: postSliceState.fruitsSliced,
-      bombsDodged: postSliceState.bombsDodged,
-      sliceMisses: postSliceState.sliceMisses,
-      maxCombo: postSliceState.maxCombo,
-      score: postSliceState.score,
-      mode: postSliceState.mode,
-      timeLeft: postSliceState.timeLeft,
-      sessionStartTime: postSliceState.sessionStartTime,
-    });
+  private buildSliceText(
+    fruit: Fruit,
+    finalPoints: number,
+    precisionMultiplier: number,
+  ): string {
+    if (this.modeConfig.combo.comboOnly) {
+      return 'SLICE!';
+    }
+
+    if (fruit.variant === 'cursed') {
+      return `CURSED ${this.formatPoints(finalPoints)}`;
+    }
+
+    if (fruit.variant === 'gold') {
+      return `GOLD ${this.formatPoints(finalPoints)}`;
+    }
+
+    if (precisionMultiplier >= this.modeConfig.precision.perfectMultiplier) {
+      return `PERFECT ${this.formatPoints(finalPoints)}`;
+    }
+
+    if (
+      this.modeConfig.precision.enabled &&
+      precisionMultiplier <= this.modeConfig.precision.edgeMultiplier
+    ) {
+      return `SLOPPY ${this.formatPoints(finalPoints)}`;
+    }
+
+    if (fruit.isCritical) {
+      return `CRITICAL ${this.formatPoints(finalPoints)}`;
+    }
+
+    return this.formatPoints(finalPoints);
+  }
+
+  private buildSliceTextColor(
+    fruit: Fruit,
+    precisionMultiplier: number,
+    finalPoints: number,
+  ): number {
+    if (this.modeConfig.combo.comboOnly) return 0xcccccc;
+    if (fruit.variant === 'cursed') return 0x8800ff;
+    if (fruit.variant === 'gold') return 0xffd700;
+    if (precisionMultiplier >= this.modeConfig.precision.perfectMultiplier) return 0x00ffff;
+    if (
+      this.modeConfig.precision.enabled &&
+      precisionMultiplier <= this.modeConfig.precision.edgeMultiplier
+    ) {
+      return 0xaaaaaa;
+    }
+    if (fruit.isCritical) return 0xff4444;
+    return finalPoints === 1 ? 0xffffff : finalPoints === 2 ? 0xffd709 : 0xff9f4a;
+  }
+
+  private formatPoints(points: number): string {
+    return points >= 0 ? `+${points}` : `${points}`;
+  }
+
+  private applyComboResolution(resolution: ComboResolution) {
+    const comboScore = calculateComboBonus(resolution.count, this.modeConfig.combo);
+    if (comboScore <= 0) return;
+
+    const state = useGameStore.getState();
+    state.addScore(comboScore);
+    state.registerCombo(resolution.count);
+
+    this.particleSystem.spawnFloatingText(
+      resolution.x,
+      resolution.y - 40,
+      `${resolution.count}x COMBO! +${comboScore}`,
+      38,
+      0xffcc00,
+    );
+    audioManager.play('combo');
+    this.unlockAchievementsFromState();
   }
 
   private handleBombSlice(bomb: Bomb) {
     this.particleSystem.spawnExplosion(bomb.x, bomb.y);
     audioManager.play('bomb');
+    this.screenFeedback?.triggerBombFeedback();
 
-    if (this.screenFeedback) {
-      this.screenFeedback.triggerBombFeedback();
-    }
-
+    this.comboTracker.reset();
     useGameStore.getState().resetStreak();
 
-    const store = useGameStore.getState();
+    const state = useGameStore.getState();
+    if (this.modeConfig.bombs.endsGame) {
+      state.endGame('bomb');
+      return;
+    }
 
-    if (this.modeConfig.bombEndsGame) {
-      useGameStore.setState({ endReason: 'bomb' });
-      store.endGame();
-    } else if (this.modeConfig.bombScorePenalty !== 0) {
-      store.addScore(this.modeConfig.bombScorePenalty);
+    if (this.modeConfig.bombs.scorePenalty !== 0) {
+      state.addScore(this.modeConfig.bombs.scorePenalty);
       this.particleSystem.spawnFloatingText(
         bomb.x,
         bomb.y - 20,
-        `${this.modeConfig.bombScorePenalty}`,
+        `${this.modeConfig.bombs.scorePenalty}`,
         30,
         0xff3333,
       );
     }
+  }
+
+  private unlockAchievementsFromState() {
+    const state = useGameStore.getState();
+    useAchievementStore.getState().checkAndUnlock({
+      fruitsSliced: state.fruitsSliced,
+      bombsDodged: state.bombsDodged,
+      fruitsMissed: state.fruitsMissed,
+      maxCombo: state.maxCombo,
+      score: state.score,
+      mode: state.mode,
+      timeLeft: state.timeLeft,
+      sessionStartTime: state.sessionStartTime,
+    });
   }
 }

@@ -1,11 +1,11 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
-import { useGameStore } from '../../store/useGameStore';
-import { Heart, Volume2, VolumeX, Flame } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Flame, Heart, Volume2, VolumeX } from 'lucide-react';
 import { AchievementToast } from './AchievementToast';
 import { getModeConfig } from '../../game/config/ModeConfig';
+import { useGameStore } from '../../store/useGameStore';
+import { useShallow } from 'zustand/react/shallow';
 
 export function HUD() {
   const {
@@ -16,58 +16,38 @@ export function HUD() {
     soundEnabled,
     toggleSound,
     setStatus,
-    setTimeLeft,
     streakCount,
     streakMultiplier,
-    lastSliceTime,
     energy,
     isEnergyActive,
-  } = useGameStore();
-
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [streakVisible, setStreakVisible] = useState(false);
+  } = useGameStore(
+    useShallow((state) => ({
+      score: state.score,
+      lives: state.lives,
+      mode: state.mode,
+      timeLeft: state.timeLeft,
+      soundEnabled: state.soundEnabled,
+      toggleSound: state.toggleSound,
+      setStatus: state.setStatus,
+      streakCount: state.streakCount,
+      streakMultiplier: state.streakMultiplier,
+      energy: state.energy,
+      isEnergyActive: state.isEnergyActive,
+    })),
+  );
 
   const modeConfig = getModeConfig(mode);
-
-  useEffect(() => {
-    if (modeConfig.timerSeconds > 0) {
-      timerRef.current = setInterval(() => {
-        const state = useGameStore.getState();
-        if (state.status === 'playing' && state.timeLeft > 0) {
-          state.setTimeLeft(state.timeLeft - 1);
-        }
-      }, 1000);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [mode, modeConfig.timerSeconds]);
-
-  useEffect(() => {
-    if (streakCount >= 2) {
-      setStreakVisible(true);
-      const timer = setTimeout(() => setStreakVisible(false), 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setStreakVisible(false);
-    }
-  }, [streakCount, lastSliceTime]);
-
-  const hasLives = modeConfig.lives > 0;
+  const hasLives = modeConfig.startingLives > 0;
   const hasTimer = modeConfig.timerSeconds > 0;
-
+  const visibleTimeLeft = Math.max(0, Math.ceil(timeLeft));
   const isDanger =
-    (hasLives && lives <= 1) ||
-    (hasTimer && timeLeft > 0 && timeLeft <= 10);
-
+    (hasLives && lives <= 1) || (hasTimer && visibleTimeLeft > 0 && visibleTimeLeft <= 10);
+  const streakVisible = streakCount >= 2;
   const multiplierLabel =
-    streakMultiplier === 1.5 ? '×1.5' :
-    streakMultiplier === 2   ? '×2'   :
-    streakMultiplier === 3   ? '×3'   : '';
+    streakMultiplier === 1.5 ? 'x1.5' : streakMultiplier === 2 ? 'x2' : streakMultiplier === 3 ? 'x3' : '';
 
   return (
     <>
-      {/* ── Danger Sense Vignette overlay ── */}
       <AnimatePresence>
         {isDanger && (
           <motion.div
@@ -86,12 +66,9 @@ export function HUD() {
         )}
       </AnimatePresence>
 
-      {/* ── Achievement Toasts ── */}
       <AchievementToast />
 
-      {/* ── Main HUD row ── */}
       <div className="flex flex-row justify-between w-full p-4 md:p-6 text-white pointer-events-none relative z-10">
-        {/* Left: score + mode + timer */}
         <div className="flex flex-col items-start pointer-events-auto">
           <motion.div
             key={score}
@@ -105,48 +82,43 @@ export function HUD() {
           </motion.div>
 
           <div className="bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-bold mt-2 text-zinc-300 border border-white/10 uppercase tracking-widest">
-            {mode} mode
+            {modeConfig.title} mode
           </div>
 
           {hasTimer && (
             <motion.div
               className={`mt-2 text-2xl font-black tabular-nums ${
-                timeLeft <= 10 ? 'text-red-400' : 'text-orange-300'
+                visibleTimeLeft <= 10 ? 'text-red-400' : 'text-orange-300'
               }`}
-              animate={timeLeft <= 5 ? { scale: [1, 1.15, 1] } : {}}
+              animate={visibleTimeLeft <= 5 ? { scale: [1, 1.15, 1] } : {}}
               transition={{ repeat: Infinity, duration: 0.5 }}
               style={{ textShadow: '0 2px 6px rgba(0,0,0,0.8)' }}
             >
-              {timeLeft}s
+              {visibleTimeLeft}s
             </motion.div>
           )}
 
-          {modeConfig.enableTimeControl && (
+          {modeConfig.timeControl.enabled && (
             <div className="mt-4 w-32 md:w-48 h-3 bg-black/60 overflow-hidden rounded-full border border-sky-400/30 shadow-[0_0_10px_rgba(56,189,248,0.2)] flex-shrink-0">
-              <div 
+              <div
                 className="h-full bg-sky-400 rounded-full"
-                style={{ 
-                  width: `${Math.max(0, Math.min(100, energy * 100))}%`,
+                style={{
+                  width: `${Math.max(0, Math.min(100, energy))}%`,
                   transition: 'width 0.1s linear',
                   boxShadow: isEnergyActive ? '0 0 12px #38bdf8' : 'none',
-                  filter: isEnergyActive ? 'brightness(1.5)' : 'brightness(1)'
+                  filter: isEnergyActive ? 'brightness(1.5)' : 'brightness(1)',
                 }}
               />
             </div>
           )}
         </div>
 
-        {/* Right: controls + lives + streak badge */}
         <div className="flex flex-col items-end pointer-events-auto gap-3">
           <button
             onClick={toggleSound}
             className="w-11 h-11 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center backdrop-blur-md border border-white/10 transition-colors"
           >
-            {soundEnabled ? (
-              <Volume2 size={20} />
-            ) : (
-              <VolumeX size={20} className="text-red-400" />
-            )}
+            {soundEnabled ? <Volume2 size={20} /> : <VolumeX size={20} className="text-red-400" />}
           </button>
 
           <button
@@ -157,7 +129,6 @@ export function HUD() {
             <div className="w-1.5 h-4 bg-white rounded-sm" />
           </button>
 
-          {/* ── Streak Multiplier Badge ── */}
           <AnimatePresence>
             {streakVisible && (
               <motion.div
@@ -180,17 +151,11 @@ export function HUD() {
                   }}
                 >
                   <Flame size={17} strokeWidth={2} style={{ color: '#ff7c26' }} />
-                  <span
-                    className="text-base font-black tabular-nums"
-                    style={{ color: '#ff9f4a' }}
-                  >
+                  <span className="text-base font-black tabular-nums" style={{ color: '#ff9f4a' }}>
                     {streakCount}
                   </span>
                   {streakMultiplier > 1 && (
-                    <span
-                      className="text-xs font-black"
-                      style={{ color: '#ffd709' }}
-                    >
+                    <span className="text-xs font-black" style={{ color: '#ffd709' }}>
                       {multiplierLabel}
                     </span>
                   )}
@@ -199,27 +164,28 @@ export function HUD() {
             )}
           </AnimatePresence>
 
-          {/* ── Lives (for modes with lives) ── */}
           {hasLives && (
             <div className="flex gap-1.5 mt-2">
-              {Array.from({ length: Math.max(lives, modeConfig.lives) }, (_, i) => i + 1).map((i) => (
-                <motion.div
-                  key={i}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1, opacity: i > lives ? 0.15 : 1 }}
-                  transition={{ delay: i * 0.05, type: 'spring' }}
-                >
-                  <Heart
-                    size={28}
-                    fill={i > lives ? 'transparent' : '#ff3366'}
-                    className={
-                      i > lives
-                        ? 'text-zinc-600'
-                        : 'text-red-500 drop-shadow-[0_0_8px_rgba(255,0,0,0.6)]'
-                    }
-                  />
-                </motion.div>
-              ))}
+              {Array.from({ length: Math.max(lives, modeConfig.startingLives) }, (_, index) => index + 1).map(
+                (lifeIndex) => (
+                  <motion.div
+                    key={lifeIndex}
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1, opacity: lifeIndex > lives ? 0.15 : 1 }}
+                    transition={{ delay: lifeIndex * 0.05, type: 'spring' }}
+                  >
+                    <Heart
+                      size={28}
+                      fill={lifeIndex > lives ? 'transparent' : '#ff3366'}
+                      className={
+                        lifeIndex > lives
+                          ? 'text-zinc-600'
+                          : 'text-red-500 drop-shadow-[0_0_8px_rgba(255,0,0,0.6)]'
+                      }
+                    />
+                  </motion.div>
+                ),
+              )}
             </div>
           )}
         </div>

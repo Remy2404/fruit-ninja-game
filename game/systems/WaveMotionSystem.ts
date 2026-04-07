@@ -1,13 +1,13 @@
-import { Pool } from '../core/Pool';
-import { Fruit } from '../entities/Fruit';
-import { Bomb } from '../entities/Bomb';
 import type { ModeConfig } from '../config/ModeConfig';
+import { Pool } from '../core/Pool';
+import { Bomb } from '../entities/Bomb';
+import { Fruit } from '../entities/Fruit';
 
 export class WaveMotionSystem {
-  private fruitPool: Pool<Fruit>;
-  private bombPool: Pool<Bomb>;
-  private modeConfig: ModeConfig;
-  private time = 0;
+  private readonly fruitPool: Pool<Fruit>;
+  private readonly bombPool: Pool<Bomb>;
+  private readonly modeConfig: ModeConfig;
+  private elapsedMs = 0;
 
   constructor(fruitPool: Pool<Fruit>, bombPool: Pool<Bomb>, modeConfig: ModeConfig) {
     this.fruitPool = fruitPool;
@@ -15,24 +15,24 @@ export class WaveMotionSystem {
     this.modeConfig = modeConfig;
   }
 
+  public reset() {
+    this.elapsedMs = 0;
+  }
+
   public update(dt: number) {
-    if (!this.modeConfig.enableWaveMotion) return;
+    if (!this.modeConfig.waveMotion.enabled) return;
 
-    this.time += dt * 16.66;
+    this.elapsedMs += dt * 16.66;
+    const { amplitude, frequency } = this.modeConfig.waveMotion;
 
-    const amplitude = 3;
-    const frequency = 0.003;
-
-    for (let i = 0; i < this.fruitPool.active.length; i++) {
-      const fruit = this.fruitPool.active[i];
-      const offset = fruit.id.charCodeAt(0) * 100;
-      fruit.x += Math.sin((this.time + offset) * frequency) * amplitude * dt;
+    for (const fruit of this.fruitPool.active) {
+      const offsetX = Math.sin(this.elapsedMs * frequency + fruit.waveSeed) * amplitude;
+      fruit.applyWaveOffset(offsetX);
     }
 
-    for (let i = 0; i < this.bombPool.active.length; i++) {
-      const bomb = this.bombPool.active[i];
-      const offset = bomb.id.charCodeAt(0) * 100;
-      bomb.x += Math.sin((this.time + offset) * frequency) * amplitude * dt;
+    for (const bomb of this.bombPool.active) {
+      const offsetX = Math.sin(this.elapsedMs * frequency + bomb.waveSeed) * amplitude;
+      bomb.applyWaveOffset(offsetX);
     }
   }
 }

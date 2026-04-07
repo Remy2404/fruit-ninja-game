@@ -1,12 +1,12 @@
-import { Pool } from '../core/Pool';
-import { Fruit } from '../entities/Fruit';
-import { Bomb } from '../entities/Bomb';
 import type { ModeConfig } from '../config/ModeConfig';
+import { Pool } from '../core/Pool';
+import { Bomb } from '../entities/Bomb';
+import { Fruit } from '../entities/Fruit';
 
 export class MemoryFadeSystem {
-  private fruitPool: Pool<Fruit>;
-  private bombPool: Pool<Bomb>;
-  private modeConfig: ModeConfig;
+  private readonly fruitPool: Pool<Fruit>;
+  private readonly bombPool: Pool<Bomb>;
+  private readonly modeConfig: ModeConfig;
 
   constructor(fruitPool: Pool<Fruit>, bombPool: Pool<Bomb>, modeConfig: ModeConfig) {
     this.fruitPool = fruitPool;
@@ -14,29 +14,24 @@ export class MemoryFadeSystem {
     this.modeConfig = modeConfig;
   }
 
-  public update(_dt: number) {
-    if (!this.modeConfig.enableMemoryFade) return;
+  public update() {
+    if (!this.modeConfig.memoryFade.enabled) return;
 
-    for (let i = 0; i < this.fruitPool.active.length; i++) {
-      const fruit = this.fruitPool.active[i];
+    const { visibleMs, fadeDurationMs } = this.modeConfig.memoryFade;
+    for (const fruit of this.fruitPool.active) {
       if (fruit.isSliced) continue;
-      
-      if (fruit.age > 500) {
-        const fadeProgress = Math.min(1, Math.max(0, (fruit.age - 500) / 300));
-        fruit.container.alpha = 1 - fadeProgress;
-      } else {
-        fruit.container.alpha = 1;
-      }
+
+      fruit.container.alpha =
+        fruit.age <= visibleMs
+          ? 1
+          : 1 - Math.min(1, Math.max(0, (fruit.age - visibleMs) / fadeDurationMs));
     }
 
-    for (let i = 0; i < this.bombPool.active.length; i++) {
-      const bomb = this.bombPool.active[i];
-      if (bomb.age > 500) {
-        const fadeProgress = Math.min(1, Math.max(0, (bomb.age - 500) / 300));
-        bomb.container.alpha = 1 - fadeProgress;
-      } else {
-        bomb.container.alpha = 1;
-      }
+    for (const bomb of this.bombPool.active) {
+      bomb.container.alpha =
+        bomb.age <= visibleMs
+          ? 1
+          : 1 - Math.min(1, Math.max(0, (bomb.age - visibleMs) / fadeDurationMs));
     }
   }
 }

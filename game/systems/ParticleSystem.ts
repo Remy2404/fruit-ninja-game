@@ -245,21 +245,21 @@ export class ParticleSystem {
 
     this.pool = new Pool<Particle>(
       () => new Particle(this.vfxLayer),
-      200,
+      { initialSize: 200, maxSize: 240, name: 'particle-pool' },
       undefined,
       (p) => p.reset(),
     );
 
     this.halfPool = new Pool<FruitHalf>(
       () => new FruitHalf(this.vfxLayer),
-      30,
+      { initialSize: 30, maxSize: 48, name: 'fruit-half-pool' },
       undefined,
       (h) => h.reset(),
     );
 
     this.textPool = new Pool<FloatingText>(
       () => new FloatingText(this.vfxLayer),
-      15,
+      { initialSize: 15, maxSize: 24, name: 'floating-text-pool' },
       undefined,
       (t) => t.reset(),
     );
@@ -268,7 +268,8 @@ export class ParticleSystem {
   public spawnFruitJuice(x: number, y: number, juiceColor: number) {
     const count = Math.floor(Math.random() * 8) + 12;
     for (let i = 0; i < count; i++) {
-      const p = this.pool.get();
+      const p = this.pool.tryGet();
+      if (!p) continue;
       p.spawn(x, y, juiceColor);
     }
   }
@@ -276,7 +277,8 @@ export class ParticleSystem {
   public spawnExplosion(x: number, y: number) {
     const count = 40;
     for (let i = 0; i < count; i++) {
-      const p = this.pool.get();
+      const p = this.pool.tryGet();
+      if (!p) continue;
       const color =
         this.explosionColors[
           Math.floor(Math.random() * this.explosionColors.length)
@@ -299,11 +301,37 @@ export class ParticleSystem {
   ) {
     const sliceAngle = Math.atan2(sliceDy, sliceDx);
 
-    const leftHalf = this.halfPool.get();
-    leftHalf.spawn(x, y, vx, vy, halfAssetPath, fullAssetPath, radius, rotation, sliceAngle, true);
+    const leftHalf = this.halfPool.tryGet();
+    if (leftHalf) {
+      leftHalf.spawn(
+        x,
+        y,
+        vx,
+        vy,
+        halfAssetPath,
+        fullAssetPath,
+        radius,
+        rotation,
+        sliceAngle,
+        true,
+      );
+    }
 
-    const rightHalf = this.halfPool.get();
-    rightHalf.spawn(x, y, vx, vy, halfAssetPath, fullAssetPath, radius, rotation, sliceAngle, false);
+    const rightHalf = this.halfPool.tryGet();
+    if (rightHalf) {
+      rightHalf.spawn(
+        x,
+        y,
+        vx,
+        vy,
+        halfAssetPath,
+        fullAssetPath,
+        radius,
+        rotation,
+        sliceAngle,
+        false,
+      );
+    }
   }
 
   public spawnFloatingText(
@@ -313,7 +341,8 @@ export class ParticleSystem {
     size = 28,
     color = 0xffffff,
   ) {
-    const txt = this.textPool.get();
+    const txt = this.textPool.tryGet();
+    if (!txt) return;
     txt.spawn(x, y, content, size, color);
   }
 

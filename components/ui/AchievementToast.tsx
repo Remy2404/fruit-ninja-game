@@ -1,23 +1,28 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Check } from 'lucide-react';
 import { useAchievementStore } from '../../store/useAchievementStore';
 import { ACHIEVEMENT_META } from './achievementConfig';
+import { useShallow } from 'zustand/react/shallow';
 
 const TOAST_DURATION_MS = 2800;
 
 export function AchievementToast() {
-  const { toastQueue, popToast } = useAchievementStore();
-  const current = toastQueue[0];
+  const { toastQueue, popToast } = useAchievementStore(
+    useShallow((state) => ({
+      toastQueue: state.toastQueue,
+      popToast: state.popToast,
+    })),
+  );
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const current = toastQueue[0];
 
   useEffect(() => {
     if (!current) return;
 
     if (timerRef.current) clearTimeout(timerRef.current);
-
     timerRef.current = setTimeout(() => {
       popToast();
     }, TOAST_DURATION_MS);
@@ -25,7 +30,7 @@ export function AchievementToast() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [current?.id]);
+  }, [current, popToast]);
 
   const meta = current ? ACHIEVEMENT_META[current.id] : null;
   const Icon = meta?.icon ?? null;
@@ -52,7 +57,6 @@ export function AchievementToast() {
               boxShadow: `0 0 28px ${meta!.color}22, 0 8px 32px rgba(0,0,0,0.6)`,
             }}
           >
-            {/* Achievement icon */}
             <div
               className="flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
               style={{
@@ -75,10 +79,12 @@ export function AchievementToast() {
               </span>
             </div>
 
-            {/* Unlocked badge */}
             <div
               className="ml-1 shrink-0 flex items-center gap-1 px-2 py-1 rounded-full"
-              style={{ background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(74,222,128,0.25)' }}
+              style={{
+                background: 'rgba(34, 197, 94, 0.12)',
+                border: '1px solid rgba(74,222,128,0.25)',
+              }}
             >
               <Check size={11} strokeWidth={3} style={{ color: '#4ade80' }} />
               <span

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
 
 export interface Achievement {
   id: string;
@@ -10,7 +10,7 @@ export interface Achievement {
 export interface CheckStats {
   fruitsSliced: number;
   bombsDodged: number;
-  sliceMisses: number;
+  fruitsMissed: number;
   maxCombo: number;
   score: number;
   mode: string;
@@ -18,36 +18,53 @@ export interface CheckStats {
   sessionStartTime: number;
 }
 
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
 const DEFINITIONS: Achievement[] = [
-  { id: 'first_slice',    title: 'First Cut',      description: 'Slice your first fruit'              },
-  { id: 'combo_initiate', title: 'Combo Initiate', description: 'Achieve a 3x combo in one stroke'   },
-  { id: 'combo_maniac',   title: 'Combo Maniac',   description: 'Achieve a 7x combo in one stroke'   },
-  { id: 'fruit_veteran',  title: 'Fruit Veteran',  description: 'Slice 25 fruits in one game'         },
-  { id: 'century',        title: 'Century',        description: 'Score 100 points in a single game'   },
-  { id: 'bomb_dodger',    title: 'Bomb Dodger',    description: 'Let 5 bombs fall safely in one game' },
-  { id: 'precision',      title: 'Precision',      description: 'Finish with 80%+ slicing accuracy'   },
-  { id: 'flawless',       title: 'Flawless',       description: 'Classic: finish with zero misses'    },
-  { id: 'speed_demon',    title: 'Speed Demon',    description: 'Score 50pts in Arcade within 30s'    },
-  { id: 'zen_master',     title: 'Zen Master',     description: 'Score 100pts in Zen mode'            },
+  { id: 'first_slice', title: 'First Cut', description: 'Slice your first fruit' },
+  { id: 'combo_initiate', title: 'Combo Initiate', description: 'Achieve a 3x combo in one burst' },
+  { id: 'combo_maniac', title: 'Combo Maniac', description: 'Achieve a 7x combo in one burst' },
+  { id: 'fruit_veteran', title: 'Fruit Veteran', description: 'Slice 25 fruits in one game' },
+  { id: 'century', title: 'Century', description: 'Score 100 points in a single game' },
+  { id: 'bomb_dodger', title: 'Bomb Dodger', description: 'Let 5 bombs fall safely in one game' },
+  { id: 'precision', title: 'Precision', description: 'Finish with 80%+ slicing accuracy' },
+  { id: 'flawless', title: 'Flawless', description: 'Classic: finish with zero dropped fruit' },
+  { id: 'speed_demon', title: 'Speed Demon', description: 'Score 50pts in Arcade within 30s' },
+  { id: 'zen_master', title: 'Zen Master', description: 'Score 100pts in Zen mode' },
 ];
 
 function evaluate(id: string, stats: CheckStats): boolean {
-  const total = stats.fruitsSliced + stats.sliceMisses;
-  const accuracy = total > 0 ? (stats.fruitsSliced / total) * 100 : 100;
-  const elapsedSec = (Date.now() - stats.sessionStartTime) / 1000;
+  const totalTargets = stats.fruitsSliced + stats.fruitsMissed;
+  const accuracy = totalTargets > 0 ? (stats.fruitsSliced / totalTargets) * 100 : 100;
+  const elapsedSeconds = (Date.now() - stats.sessionStartTime) / 1000;
 
   switch (id) {
-    case 'first_slice':    return stats.fruitsSliced >= 1;
-    case 'combo_initiate': return stats.maxCombo >= 3;
-    case 'combo_maniac':   return stats.maxCombo >= 7;
-    case 'fruit_veteran':  return stats.fruitsSliced >= 25;
-    case 'century':        return stats.score >= 100;
-    case 'bomb_dodger':    return stats.bombsDodged >= 5;
-    case 'precision':      return accuracy >= 80 && stats.fruitsSliced >= 10;
-    case 'flawless':       return stats.mode === 'classic' && stats.sliceMisses === 0 && stats.fruitsSliced >= 5;
-    case 'speed_demon':    return stats.mode === 'arcade' && stats.score >= 50 && elapsedSec <= 30;
-    case 'zen_master':     return stats.mode === 'zen' && stats.score >= 100;
-    default:               return false;
+    case 'first_slice':
+      return stats.fruitsSliced >= 1;
+    case 'combo_initiate':
+      return stats.maxCombo >= 3;
+    case 'combo_maniac':
+      return stats.maxCombo >= 7;
+    case 'fruit_veteran':
+      return stats.fruitsSliced >= 25;
+    case 'century':
+      return stats.score >= 100;
+    case 'bomb_dodger':
+      return stats.bombsDodged >= 5;
+    case 'precision':
+      return accuracy >= 80 && stats.fruitsSliced >= 10;
+    case 'flawless':
+      return stats.mode === 'classic' && stats.fruitsMissed === 0 && stats.fruitsSliced >= 5;
+    case 'speed_demon':
+      return stats.mode === 'arcade' && stats.score >= 50 && elapsedSeconds <= 30;
+    case 'zen_master':
+      return stats.mode === 'zen' && stats.score >= 100;
+    default:
+      return false;
   }
 }
 
@@ -71,19 +88,16 @@ export const useAchievementStore = create<AchievementStore>()(
 
       checkAndUnlock: (stats) => {
         const { unlockedIds } = get();
-        const newlyUnlocked: Achievement[] = [];
-
-        for (const def of DEFINITIONS) {
-          if (unlockedIds[def.id]) continue;
-          if (evaluate(def.id, stats)) {
-            newlyUnlocked.push(def);
-          }
-        }
+        const newlyUnlocked = DEFINITIONS.filter(
+          (definition) => !unlockedIds[definition.id] && evaluate(definition.id, stats),
+        );
 
         if (newlyUnlocked.length === 0) return;
 
         const updatedIds = { ...unlockedIds };
-        newlyUnlocked.forEach((a) => { updatedIds[a.id] = true; });
+        for (const achievement of newlyUnlocked) {
+          updatedIds[achievement.id] = true;
+        }
 
         set((state) => ({
           unlockedIds: updatedIds,
@@ -93,13 +107,14 @@ export const useAchievementStore = create<AchievementStore>()(
       },
 
       popToast: () => set((state) => ({ toastQueue: state.toastQueue.slice(1) })),
-
       clearSessionUnlocks: () => set({ sessionUnlocks: [] }),
-
       resetSession: () => set({ toastQueue: [], sessionUnlocks: [] }),
     }),
     {
       name: 'fruit-ninja-achievements',
+      storage: createJSONStorage(() =>
+        typeof window === 'undefined' ? noopStorage : window.localStorage,
+      ),
       partialize: (state) => ({ unlockedIds: state.unlockedIds }),
     },
   ),

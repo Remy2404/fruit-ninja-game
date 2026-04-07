@@ -1,24 +1,24 @@
 'use client';
 
 import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Skull,
-  Swords,
   Bomb,
-  Target,
-  Leaf,
   Check,
+  Leaf,
+  Skull,
   Star,
-  Trophy,
+  Swords,
+  Target,
   Timer,
+  Trophy,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useGameStore } from '../../store/useGameStore';
-import { useAchievementStore } from '../../store/useAchievementStore';
-import { ACHIEVEMENT_META } from './achievementConfig';
-import type { GameMode, GameEndReason } from '../../store/useGameStore';
+import { useShallow } from 'zustand/react/shallow';
 import { getModeConfig } from '../../game/config/ModeConfig';
+import { useAchievementStore } from '../../store/useAchievementStore';
+import { type GameEndReason, type GameMode, useGameStore } from '../../store/useGameStore';
+import { ACHIEVEMENT_META } from './achievementConfig';
 
 interface StatCardProps {
   icon: LucideIcon;
@@ -38,7 +38,6 @@ function StatCard({ icon: Icon, iconColor, label, value }: StatCardProps) {
         border: '1px solid rgba(255,255,255,0.06)',
       }}
     >
-      {/* Accent line */}
       <div
         className="absolute top-0 left-6 right-6 h-px rounded-full"
         style={{ background: 'linear-gradient(to right, #ff9f4a, #ffd709)' }}
@@ -65,7 +64,14 @@ function resolveEndState(mode: GameMode, reason: GameEndReason) {
       iconBorder: 'rgba(255,215,9,0.30)',
       iconGlow: 'rgba(255,215,9,0.18)',
       iconColor: '#ffd709',
-      heading: mode === 'zen' ? 'Zen Complete' : mode === 'frenzy' ? 'FRENZY OVER!' : mode === 'combo_master' ? 'COMBO MASTER OVER!' : 'Time\'s Up!',
+      heading:
+        mode === 'zen'
+          ? 'Zen Complete'
+          : mode === 'frenzy'
+            ? 'FRENZY OVER!'
+            : mode === 'combo_master'
+              ? 'COMBO MASTER OVER!'
+              : 'Time\'s Up!',
       headingGradient: 'linear-gradient(135deg, #ffd709, #ff9f4a)',
       topGlow: 'linear-gradient(to right, transparent, #ffd709, transparent)',
       isWin: true,
@@ -80,9 +86,10 @@ function resolveEndState(mode: GameMode, reason: GameEndReason) {
       iconGlow: 'rgba(255,50,50,0.18)',
       iconColor: '#ff7162',
       heading: mode === 'songkran' ? 'POT SMASHED!' : 'KABOOM!',
-      headingGradient: mode === 'songkran'
-        ? 'linear-gradient(135deg, #d4a017, #ff9f4a)'
-        : 'linear-gradient(135deg, #ff7162, #ff9f4a)',
+      headingGradient:
+        mode === 'songkran'
+          ? 'linear-gradient(135deg, #d4a017, #ff9f4a)'
+          : 'linear-gradient(135deg, #ff7162, #ff9f4a)',
       topGlow: 'linear-gradient(to right, transparent, #ff7162, transparent)',
       isWin: false,
     };
@@ -106,47 +113,40 @@ export function GameOverMenu() {
     score,
     mode,
     endReason,
-    bestScoreClassic,
-    bestScoreArcade,
-    bestScoreZen,
-    bestScoreSongkran,
-    bestScoreFrenzy,
-    bestScoreRisk,
-    bestScoreMemory,
-    bestScoreComboMaster,
-    bestScoreTsunami,
-    bestScorePrecision,
-    bestScoreChaos,
-    bestScoreTimeFreeze,
+    bestScores,
     fruitsSliced,
     bombsDodged,
-    sliceMisses,
+    fruitsMissed,
+    maxCombo,
     resetGame,
     setStatus,
-  } = useGameStore();
-
-  const { sessionUnlocks, clearSessionUnlocks, checkAndUnlock } = useAchievementStore();
+  } = useGameStore(
+    useShallow((state) => ({
+      score: state.score,
+      mode: state.mode,
+      endReason: state.endReason,
+      bestScores: state.bestScores,
+      fruitsSliced: state.fruitsSliced,
+      bombsDodged: state.bombsDodged,
+      fruitsMissed: state.fruitsMissed,
+      maxCombo: state.maxCombo,
+      resetGame: state.resetGame,
+      setStatus: state.setStatus,
+    })),
+  );
+  const { sessionUnlocks, clearSessionUnlocks, checkAndUnlock } = useAchievementStore(
+    useShallow((state) => ({
+      sessionUnlocks: state.sessionUnlocks,
+      clearSessionUnlocks: state.clearSessionUnlocks,
+      checkAndUnlock: state.checkAndUnlock,
+    })),
+  );
 
   const modeConfig = getModeConfig(mode);
-
-  const bestScore =
-    mode === 'classic'   ? bestScoreClassic  :
-    mode === 'arcade'    ? bestScoreArcade   :
-    mode === 'songkran'  ? bestScoreSongkran :
-    mode === 'frenzy'    ? bestScoreFrenzy   :
-    mode === 'risk'      ? bestScoreRisk     :
-    mode === 'memory'    ? bestScoreMemory   :
-    mode === 'combo_master' ? bestScoreComboMaster :
-    mode === 'tsunami'   ? bestScoreTsunami  :
-    mode === 'precision' ? bestScorePrecision :
-    mode === 'chaos'     ? bestScoreChaos    :
-    mode === 'time_freeze' ? bestScoreTimeFreeze :
-    bestScoreZen;
-
-  const total = fruitsSliced + sliceMisses;
-  const accuracy = total > 0 ? Math.round((fruitsSliced / total) * 100) : 100;
-  const isNewBest = score >= bestScore && score > 0;
-
+  const bestScore = bestScores[mode];
+  const totalTargets = fruitsSliced + fruitsMissed;
+  const accuracy = totalTargets > 0 ? Math.round((fruitsSliced / totalTargets) * 100) : 100;
+  const isNewBest = score > 0 && score === bestScore;
   const end = resolveEndState(mode, endReason);
   const EndIcon = end.icon;
 
@@ -155,7 +155,7 @@ export function GameOverMenu() {
     checkAndUnlock({
       fruitsSliced: state.fruitsSliced,
       bombsDodged: state.bombsDodged,
-      sliceMisses: state.sliceMisses,
+      fruitsMissed: state.fruitsMissed,
       maxCombo: state.maxCombo,
       score: state.score,
       mode: state.mode,
@@ -166,12 +166,11 @@ export function GameOverMenu() {
     return () => {
       clearSessionUnlocks();
     };
-  }, []);
+  }, [checkAndUnlock, clearSessionUnlocks]);
 
   return (
     <AnimatePresence>
       <div className="absolute inset-0 flex items-center justify-center z-20">
-        {/* Backdrop */}
         <motion.div
           className="absolute inset-0"
           initial={{ opacity: 0 }}
@@ -179,7 +178,6 @@ export function GameOverMenu() {
           style={{ background: 'rgba(0,0,0,0.72)', backdropFilter: 'blur(6px)' }}
         />
 
-        {/* Card */}
         <motion.div
           initial={{ scale: 0.85, opacity: 0, y: 24 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -193,13 +191,11 @@ export function GameOverMenu() {
             boxShadow: `0 0 60px ${end.iconGlow}, 0 24px 64px rgba(0,0,0,0.7)`,
           }}
         >
-          {/* Top glow accent */}
           <div
             className="absolute top-0 left-1/4 right-1/4 h-px rounded-full"
             style={{ background: end.topGlow }}
           />
 
-          {/* Title */}
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -229,7 +225,6 @@ export function GameOverMenu() {
             </h1>
           </motion.div>
 
-          {/* Score */}
           <motion.div
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
@@ -265,13 +260,15 @@ export function GameOverMenu() {
               </motion.div>
             )}
             {!isNewBest && bestScore > 0 && (
-              <div className="mt-1 text-xs font-semibold uppercase tracking-widest" style={{ color: '#4a4a4a' }}>
+              <div
+                className="mt-1 text-xs font-semibold uppercase tracking-widest"
+                style={{ color: '#4a4a4a' }}
+              >
                 Best: {bestScore}
               </div>
             )}
           </motion.div>
 
-          {/* ── Session Stats Row ── */}
           <motion.div
             className="flex gap-2.5 w-full mt-6"
             initial={{ opacity: 0, y: 14 }}
@@ -279,7 +276,7 @@ export function GameOverMenu() {
             transition={{ delay: 0.35 }}
           >
             <StatCard icon={Swords} iconColor="#ff9f4a" label="Sliced" value={String(fruitsSliced)} />
-            {!modeConfig.allowBombs ? (
+            {!modeConfig.bombs.allow ? (
               <StatCard icon={Leaf} iconColor="#4ade80" label="No Bombs" value="Zen" />
             ) : modeConfig.timerSeconds > 0 ? (
               <StatCard icon={Timer} iconColor="#38bdf8" label="Mode" value={modeConfig.title} />
@@ -289,7 +286,6 @@ export function GameOverMenu() {
             <StatCard icon={Target} iconColor="#38bdf8" label="Accuracy" value={`${accuracy}%`} />
           </motion.div>
 
-          {/* ── This-session Achievement Unlocks ── */}
           <AnimatePresence>
             {sessionUnlocks.length > 0 && (
               <motion.div
@@ -305,16 +301,16 @@ export function GameOverMenu() {
                   Achievements Unlocked
                 </p>
                 <div className="flex flex-wrap gap-2 justify-center">
-                  {sessionUnlocks.map((a, i) => {
-                    const meta = ACHIEVEMENT_META[a.id];
-                    const AIcon = meta?.icon;
+                  {sessionUnlocks.map((achievement, index) => {
+                    const meta = ACHIEVEMENT_META[achievement.id];
+                    const AchievementIcon = meta?.icon;
                     return (
                       <motion.div
-                        key={a.id}
+                        key={achievement.id}
                         initial={{ scale: 0, rotate: -6 }}
                         animate={{ scale: 1, rotate: 0 }}
                         transition={{
-                          delay: 0.6 + i * 0.09,
+                          delay: 0.6 + index * 0.09,
                           type: 'spring',
                           stiffness: 300,
                           damping: 20,
@@ -325,10 +321,10 @@ export function GameOverMenu() {
                           border: `1px solid ${meta?.color ?? '#ff9f4a'}30`,
                         }}
                       >
-                        {AIcon && (
-                          <AIcon size={13} strokeWidth={2} style={{ color: meta.color }} />
+                        {AchievementIcon && (
+                          <AchievementIcon size={13} strokeWidth={2} style={{ color: meta.color }} />
                         )}
-                        <span className="text-white font-bold text-xs">{a.title}</span>
+                        <span className="text-white font-bold text-xs">{achievement.title}</span>
                         <Check size={11} strokeWidth={3} style={{ color: '#4ade80' }} />
                       </motion.div>
                     );
@@ -338,7 +334,12 @@ export function GameOverMenu() {
             )}
           </AnimatePresence>
 
-          {/* ── Action Buttons ── */}
+          {maxCombo > 0 && (
+            <p className="mt-4 text-xs uppercase tracking-widest text-zinc-500">
+              Max Combo: {maxCombo}
+            </p>
+          )}
+
           <motion.div
             className="flex flex-col gap-3 w-full mt-7"
             initial={{ opacity: 0, y: 12 }}

@@ -8,43 +8,52 @@ export interface TrailPoint {
   time: number;
 }
 
+export interface SwipeSegment {
+  p1: TrailPoint;
+  p2: TrailPoint;
+}
+
 export class InputSystem {
-  private app: Application;
-  private trailLayer: Container;
-  
-  // Is the player holding down / swiping?
+  private readonly app: Application;
+  private readonly trailLayer: Container;
+  private readonly trailGraphics: Graphics;
+  private readonly trailLifetimeMs = 150;
+  private readonly trailThickness = 18;
+  private readonly maxTrailPoints = 48;
+  private readonly interpolationStepPx = 18;
+
+  private activePointerId: number | null = null;
+  private pendingSegments: SwipeSegment[] = [];
+
   public isSwiping = false;
-  
-  // History of recently touched points
   public points: TrailPoint[] = [];
-
-  // Graphics object where we draw the blade trail
-  private trailGraphics: Graphics;
-
-  // Constants for tuning the feel
-  private TRAIL_LIFETIME = 150; // ms before a point disappears
-  private TRAIL_THICKNESS = 18;
 
   constructor(app: Application, trailLayer: Container) {
     this.app = app;
     this.trailLayer = trailLayer;
-    
     this.trailGraphics = new Graphics();
     this.trailLayer.addChild(this.trailGraphics);
-
     this.bindEvents();
   }
 
   private bindEvents() {
     this.app.stage.eventMode = 'dynamic';
-    this.app.stage.hitArea = new Rectangle(0, 0, 10000, 10000); 
-    
+    this.app.stage.hitArea = new Rectangle(0, 0, 10000, 10000);
+
     const canvas = this.app.canvas as HTMLCanvasElement;
-    
     canvas.addEventListener('pointerdown', this.onPointerDown);
     canvas.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
     window.addEventListener('pointercancel', this.onPointerUp);
+  }
+
+  public reset() {
+    this.activePointerId = null;
+    this.isSwiping = false;
+    this.points.length = 0;
+    this.pendingSegments.length = 0;
+    this.trailGraphics.clear();
+    useGameStore.getState().setIsEnergyActive(false);
   }
 
   public destroy() {
@@ -53,49 +62,144 @@ export class InputSystem {
     canvas.removeEventListener('pointermove', this.onPointerMove);
     window.removeEventListener('pointerup', this.onPointerUp);
     window.removeEventListener('pointercancel', this.onPointerUp);
-    
-    if (this.trailGraphics && !this.trailGraphics.destroyed) {
-        this.trailGraphics.destroy();
+
+    this.reset();
+    if (!this.trailGraphics.destroyed) {
+      this.trailGraphics.destroy();
     }
   }
 
-  private onPointerDown = (e: PointerEvent) => {
+  public consumePendingSegments(consumer: (segment: SwipeSegment) => void) {
+    for (const segment of this.pendingSegments) {
+      consumer(segment);
+    }
+    this.pendingSegments.length = 0;
+  }
+
+  private onPointerDown = (event: PointerEvent) => {
+    if (this.activePointerId !== null && this.activePointerId !== event.pointerId) {
+      return;
+    }
+
+    this.activePointerId = event.pointerId;
     this.isSwiping = true;
+    this.points.length = 0;
+    this.pendingSegments.length = 0;
     useGameStore.getState().setIsEnergyActive(true);
-    this.points = [];
-    this.addPoint(e.clientX, e.clientY);
+
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    if (canvas.setPointerCapture) {
+      canvas.setPointerCapture(event.pointerId);
+    }
+
+    this.recordPointerEvent(event);
     audioManager.playPitchShifted('whoosh', 0.8, 1.2);
   };
 
-  private onPointerMove = (e: PointerEvent) => {
-    if (!this.isSwiping) return;
-    this.addPoint(e.clientX, e.clientY);
+  private onPointerMove = (event: PointerEvent) => {
+    if (!this.isSwiping || event.pointerId !== this.activePointerId) return;
+    this.recordPointerEvent(event);
   };
 
-  private onPointerUp = () => {
+  private onPointerUp = (event: PointerEvent) => {
+    if (this.activePointerId !== null && event.pointerId !== this.activePointerId) {
+      return;
+    }
+
+    const canvas = this.app.canvas as HTMLCanvasElement;
+    if (this.activePointerId !== null && canvas.releasePointerCapture) {
+      try {
+        canvas.releasePointerCapture(this.activePointerId);
+      } catch {
+        // Pointer may already be released outside the canvas bounds.
+      }
+    }
+
+    this.activePointerId = null;
     this.isSwiping = false;
     useGameStore.getState().setIsEnergyActive(false);
   };
 
-  private addPoint(x: number, y: number) {
-   
+  private recordPointerEvent(event: PointerEvent) {
+    const sourceEvents =
+      typeof event.getCoalescedEvents === 'function'
+        ? event.getCoalescedEvents()
+        : [event];
+
+    for (const sourceEvent of sourceEvents) {
+      const point = this.toCanvasPoint(
+        sourceEvent.clientX,
+        sourceEvent.clientY,
+        sourceEvent.timeStamp || performance.now(),
+      );
+      this.appendInterpolatedPoints(point);
+    }
+  }
+
+  private toCanvasPoint(clientX: number, clientY: number, time: number): TrailPoint {
     const rect = this.app.canvas.getBoundingClientRect();
     const scaleX = this.app.screen.width / rect.width;
     const scaleY = this.app.screen.height / rect.height;
 
-    this.points.push({
-      x: (x - rect.left) * scaleX,
-      y: (y - rect.top) * scaleY,
-      time: performance.now()
-    });
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+      time,
+    };
   }
 
-  public update(dt: number) {
+  private appendInterpolatedPoints(targetPoint: TrailPoint) {
+    const previousPoint = this.points[this.points.length - 1];
+    if (!previousPoint) {
+      this.pushPoint(targetPoint);
+      return;
+    }
+
+    const dx = targetPoint.x - previousPoint.x;
+    const dy = targetPoint.y - previousPoint.y;
+    const distance = Math.hypot(dx, dy);
+    const steps = Math.max(1, Math.ceil(distance / this.interpolationStepPx));
+    let segmentStart = previousPoint;
+
+    for (let step = 1; step <= steps; step++) {
+      const t = step / steps;
+      const nextPoint: TrailPoint = {
+        x: previousPoint.x + dx * t,
+        y: previousPoint.y + dy * t,
+        time: previousPoint.time + (targetPoint.time - previousPoint.time) * t,
+      };
+
+      this.pushPoint(nextPoint);
+      this.pendingSegments.push({ p1: segmentStart, p2: nextPoint });
+      segmentStart = nextPoint;
+    }
+  }
+
+  private pushPoint(point: TrailPoint) {
+    if (this.points.length >= this.maxTrailPoints) {
+      for (let index = 1; index < this.points.length; index++) {
+        this.points[index - 1] = this.points[index];
+      }
+      this.points.length -= 1;
+    }
+
+    this.points.push(point);
+  }
+
+  public update() {
     const now = performance.now();
+    let writeIndex = 0;
 
-    this.points = this.points.filter(p => now - p.time < this.TRAIL_LIFETIME);
+    for (let readIndex = 0; readIndex < this.points.length; readIndex++) {
+      const point = this.points[readIndex];
+      if (now - point.time < this.trailLifetimeMs) {
+        this.points[writeIndex] = point;
+        writeIndex++;
+      }
+    }
 
-    // 2. Short-circuit if no valid trail
+    this.points.length = writeIndex;
+
     if (this.points.length < 2) {
       if (!this.isSwiping) {
         this.trailGraphics.clear();
@@ -103,33 +207,34 @@ export class InputSystem {
       return;
     }
 
-    // 3. Render the dynamic trail mesh
     this.renderTrail();
   }
 
   private renderTrail() {
     this.trailGraphics.clear();
-    
+
     const count = this.points.length;
-    
-    for (let i = 0; i < count - 1; i++) {
-        const p1 = this.points[i];
-        const p2 = this.points[i + 1];
+    for (let index = 0; index < count - 1; index++) {
+      const p1 = this.points[index];
+      const p2 = this.points[index + 1];
+      const progress = index / count;
+      const thickness = this.trailThickness * Math.max(0.1, progress);
 
-        // Thickness tapers off towards the start of the array (older points)
-        const progress = i / count;
-        const thickness = this.TRAIL_THICKNESS * Math.max(0.1, progress);
+      this.trailGraphics.moveTo(p1.x, p1.y);
+      this.trailGraphics.lineTo(p2.x, p2.y);
+      this.trailGraphics.stroke({
+        width: thickness,
+        color: 0xffffff,
+        alpha: progress,
+      });
 
-        // Core white slice
-        this.trailGraphics.moveTo(p1.x, p1.y);
-        this.trailGraphics.lineTo(p2.x, p2.y);
-        this.trailGraphics.stroke({ width: thickness, color: 0xffffff, alpha: progress });
-        
-        // Outer glow
-        this.trailGraphics.moveTo(p1.x, p1.y);
-        this.trailGraphics.lineTo(p2.x, p2.y);
-        this.trailGraphics.stroke({ width: thickness * 2, color: 0x88ccff, alpha: progress * 0.5 });
+      this.trailGraphics.moveTo(p1.x, p1.y);
+      this.trailGraphics.lineTo(p2.x, p2.y);
+      this.trailGraphics.stroke({
+        width: thickness * 2,
+        color: 0x88ccff,
+        alpha: progress * 0.5,
+      });
     }
-    
   }
 }

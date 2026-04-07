@@ -1,11 +1,40 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { getModeConfig } from '../game/config/ModeConfig';
+import { createJSONStorage, persist, type StateStorage } from 'zustand/middleware';
+import { MODE_ORDER, getModeConfig } from '../game/config/ModeConfig';
 import { getThemeModeMapping } from '../game/config/ThemeConfig';
 
 export type GameState = 'menu' | 'playing' | 'paused' | 'gameover';
-export type GameMode = 'classic' | 'arcade' | 'zen' | 'songkran' | 'frenzy' | 'risk' | 'memory' | 'combo_master' | 'tsunami' | 'precision' | 'chaos' | 'time_freeze';
+export type GameMode =
+  | 'classic'
+  | 'arcade'
+  | 'zen'
+  | 'songkran'
+  | 'frenzy'
+  | 'risk'
+  | 'memory'
+  | 'combo_master'
+  | 'tsunami'
+  | 'precision'
+  | 'chaos'
+  | 'time_freeze';
 export type GameEndReason = 'lives' | 'bomb' | 'timeout';
+
+const STREAK_WINDOW_MS = 3000;
+
+const noopStorage: StateStorage = {
+  getItem: () => null,
+  setItem: () => undefined,
+  removeItem: () => undefined,
+};
+
+const createBestScores = (): Record<GameMode, number> =>
+  MODE_ORDER.reduce(
+    (scores, mode) => {
+      scores[mode] = 0;
+      return scores;
+    },
+    {} as Record<GameMode, number>,
+  );
 
 export interface GameStore {
   status: GameState;
@@ -14,7 +43,6 @@ export interface GameStore {
   endReason: GameEndReason;
   score: number;
   lives: number;
-  combo: number;
   maxCombo: number;
   timeLeft: number;
 
@@ -24,7 +52,7 @@ export interface GameStore {
 
   fruitsSliced: number;
   bombsDodged: number;
-  sliceMisses: number;
+  fruitsMissed: number;
   sessionStartTime: number;
 
   streakCount: number;
@@ -32,27 +60,14 @@ export interface GameStore {
   lastSliceTime: number;
 
   soundEnabled: boolean;
-  musicEnabled: boolean;
-
-  bestScoreClassic: number;
-  bestScoreArcade: number;
-  bestScoreZen: number;
-  bestScoreSongkran: number;
-  bestScoreFrenzy: number;
-  bestScoreRisk: number;
-  bestScoreMemory: number;
-  bestScoreComboMaster: number;
-  bestScoreTsunami: number;
-  bestScorePrecision: number;
-  bestScoreChaos: number;
-  bestScoreTimeFreeze: number;
+  bestScores: Record<GameMode, number>;
 
   setStatus: (status: GameState) => void;
   setMode: (mode: GameMode) => void;
   addScore: (points: number) => void;
   loseLife: () => void;
-  setCombo: (count: number) => void;
-  setTimeLeft: (time: number) => void;
+  registerCombo: (count: number) => void;
+  advanceTimer: (deltaSeconds: number) => void;
   resetGame: () => void;
 
   decreaseEnergy: (amount: number) => void;
@@ -61,14 +76,12 @@ export interface GameStore {
   setIsEnergyActive: (active: boolean) => void;
 
   recordSlice: () => number;
-  recordMiss: () => void;
+  recordFruitMissed: () => void;
   recordBombDodged: () => void;
   resetStreak: () => void;
 
   toggleSound: () => void;
-  toggleMusic: () => void;
-
-  endGame: () => void;
+  endGame: (reason?: GameEndReason) => void;
 }
 
 export const useGameStore = create<GameStore>()(
@@ -77,20 +90,19 @@ export const useGameStore = create<GameStore>()(
       status: 'menu',
       mode: 'classic',
       themeId: 'default',
-      endReason: 'timeout' as GameEndReason,
+      endReason: 'timeout',
       score: 0,
       lives: 3,
-      combo: 0,
       maxCombo: 0,
       timeLeft: 0,
 
       energy: 100,
-      timeScale: 1.0,
+      timeScale: 1,
       isEnergyActive: false,
 
       fruitsSliced: 0,
       bombsDodged: 0,
-      sliceMisses: 0,
+      fruitsMissed: 0,
       sessionStartTime: 0,
 
       streakCount: 0,
@@ -98,37 +110,24 @@ export const useGameStore = create<GameStore>()(
       lastSliceTime: 0,
 
       soundEnabled: true,
-      musicEnabled: true,
-
-      bestScoreClassic: 0,
-      bestScoreArcade: 0,
-      bestScoreZen: 0,
-      bestScoreSongkran: 0,
-      bestScoreFrenzy: 0,
-      bestScoreRisk: 0,
-      bestScoreMemory: 0,
-      bestScoreComboMaster: 0,
-      bestScoreTsunami: 0,
-      bestScorePrecision: 0,
-      bestScoreChaos: 0,
-      bestScoreTimeFreeze: 0,
+      bestScores: createBestScores(),
 
       setStatus: (status) => set({ status }),
       setMode: (mode) => set({ mode, themeId: getThemeModeMapping(mode) }),
 
       addScore: (points) => {
         const state = get();
-        const prevScore = state.score;
-        const newScore = Math.max(0, prevScore + points);
-
-        const updates: Partial<GameStore> = { score: newScore };
-
+        const previousScore = state.score;
+        const nextScore = Math.max(0, previousScore + points);
         const modeConfig = getModeConfig(state.mode);
-        if (modeConfig.missCostsLife && points > 0) {
-          const prevMilestone = Math.floor(prevScore / 100);
-          const newMilestone = Math.floor(newScore / 100);
-          if (newMilestone > prevMilestone) {
-            updates.lives = Math.min(state.lives + 1, 5);
+        const updates: Partial<GameStore> = { score: nextScore };
+
+        const extraLifeEvery = modeConfig.scoring.extraLifeEveryScore;
+        if (extraLifeEvery && points > 0) {
+          const previousMilestone = Math.floor(previousScore / extraLifeEvery);
+          const nextMilestone = Math.floor(nextScore / extraLifeEvery);
+          if (nextMilestone > previousMilestone) {
+            updates.lives = Math.min(state.lives + 1, modeConfig.scoring.maxLives);
           }
         }
 
@@ -136,76 +135,73 @@ export const useGameStore = create<GameStore>()(
       },
 
       loseLife: () => {
-        set((state) => {
-          const newLives = state.lives - 1;
-          if (newLives <= 0) {
-            setTimeout(() => {
-              set({ endReason: 'lives' });
-              get().endGame();
-            }, 0);
-            return { lives: 0 };
-          }
-          return { lives: newLives };
-        });
-      },
+        const state = get();
+        if (state.status !== 'playing' || state.lives <= 0) return;
 
-      setCombo: (count) => {
-        set((state) => ({
-          combo: count,
-          maxCombo: Math.max(state.maxCombo, count),
-        }));
-      },
-
-      setTimeLeft: (time) => {
-        set({ timeLeft: time });
-        if (time <= 0) {
-          const state = get();
-          const modeConfig = getModeConfig(state.mode);
-          if (state.status === 'playing' && modeConfig.timerSeconds > 0) {
-            state.endGame();
-          }
+        const nextLives = Math.max(0, state.lives - 1);
+        set({ lives: nextLives });
+        if (nextLives === 0) {
+          get().endGame('lives');
         }
       },
 
-      decreaseEnergy: (amount) => {
-        set((state) => ({ energy: Math.max(0, state.energy - amount) }));
+      registerCombo: (count) =>
+        set((state) => ({
+          maxCombo: Math.max(state.maxCombo, count),
+        })),
+
+      advanceTimer: (deltaSeconds) => {
+        const state = get();
+        const modeConfig = getModeConfig(state.mode);
+        if (
+          state.status !== 'playing' ||
+          modeConfig.timerSeconds <= 0 ||
+          deltaSeconds <= 0
+        ) {
+          return;
+        }
+
+        const nextTimeLeft = Math.max(0, state.timeLeft - deltaSeconds);
+        set({ timeLeft: nextTimeLeft });
+        if (nextTimeLeft <= 0) {
+          get().endGame('timeout');
+        }
       },
+
+      decreaseEnergy: (amount) =>
+        set((state) => ({ energy: Math.max(0, state.energy - amount) })),
 
       increaseEnergy: (amount) => {
-        set((state) => ({ energy: Math.min(100, state.energy + amount) }));
+        const maxEnergy = getModeConfig(get().mode).timeControl.energyMax;
+        set((state) => ({ energy: Math.min(maxEnergy, state.energy + amount) }));
       },
 
-      setTimeScale: (value) => {
-        set({ timeScale: value });
-      },
-
-      setIsEnergyActive: (active) => {
-        set({ isEnergyActive: active });
-      },
+      setTimeScale: (value) => set({ timeScale: value }),
+      setIsEnergyActive: (active) => set({ isEnergyActive: active }),
 
       recordSlice: () => {
         const now = Date.now();
         const state = get();
-        const withinWindow = now - state.lastSliceTime < 3000;
-        const newStreak = withinWindow ? state.streakCount + 1 : 1;
-        const multiplier: number =
-          newStreak >= 8 ? 3 :
-          newStreak >= 5 ? 2 :
-          newStreak >= 3 ? 1.5 : 1;
+        const withinWindow = now - state.lastSliceTime < STREAK_WINDOW_MS;
+        const nextStreak = withinWindow ? state.streakCount + 1 : 1;
+        const streakMultiplier =
+          nextStreak >= 8 ? 3 : nextStreak >= 5 ? 2 : nextStreak >= 3 ? 1.5 : 1;
 
         set({
           fruitsSliced: state.fruitsSliced + 1,
-          streakCount: newStreak,
-          streakMultiplier: multiplier,
+          streakCount: nextStreak,
+          streakMultiplier,
           lastSliceTime: now,
         });
 
-        return multiplier;
+        return streakMultiplier;
       },
 
-      recordMiss: () => set((state) => ({ sliceMisses: state.sliceMisses + 1 })),
+      recordFruitMissed: () =>
+        set((state) => ({ fruitsMissed: state.fruitsMissed + 1 })),
 
-      recordBombDodged: () => set((state) => ({ bombsDodged: state.bombsDodged + 1 })),
+      recordBombDodged: () =>
+        set((state) => ({ bombsDodged: state.bombsDodged + 1 })),
 
       resetStreak: () => set({ streakCount: 0, streakMultiplier: 1 }),
 
@@ -215,83 +211,55 @@ export const useGameStore = create<GameStore>()(
         set({
           status: 'playing',
           score: 0,
-          lives: modeConfig.lives,
-          combo: 0,
+          lives: modeConfig.startingLives,
           maxCombo: 0,
           timeLeft: modeConfig.timerSeconds,
-          energy: 100,
-          timeScale: 1.0,
+          energy: modeConfig.timeControl.energyMax,
+          timeScale: 1,
           isEnergyActive: false,
           fruitsSliced: 0,
           bombsDodged: 0,
-          sliceMisses: 0,
+          fruitsMissed: 0,
           sessionStartTime: Date.now(),
           streakCount: 0,
           streakMultiplier: 1,
           lastSliceTime: 0,
-          endReason: 'timeout',
+          endReason: modeConfig.timerSeconds > 0 ? 'timeout' : 'lives',
         });
       },
 
       toggleSound: () => set((state) => ({ soundEnabled: !state.soundEnabled })),
-      toggleMusic: () => set((state) => ({ musicEnabled: !state.musicEnabled })),
 
-      endGame: () => {
+      endGame: (reason) => {
         const state = get();
-        const updates: Partial<GameStore> = { status: 'gameover' };
+        if (state.status === 'gameover') return;
 
-        if (state.endReason !== 'lives' && state.endReason !== 'bomb') {
-          const modeConfig = getModeConfig(state.mode);
-          updates.endReason =
-            modeConfig.lives > 0 ? 'lives' : 'timeout';
-        }
+        const resolvedReason =
+          reason ??
+          (getModeConfig(state.mode).timerSeconds > 0 ? 'timeout' : 'lives');
+        const previousBest = state.bestScores[state.mode];
+        const bestScores =
+          state.score > previousBest
+            ? { ...state.bestScores, [state.mode]: state.score }
+            : state.bestScores;
 
-        if (state.mode === 'classic' && state.score > state.bestScoreClassic) {
-          updates.bestScoreClassic = state.score;
-        } else if (state.mode === 'arcade' && state.score > state.bestScoreArcade) {
-          updates.bestScoreArcade = state.score;
-        } else if (state.mode === 'zen' && state.score > state.bestScoreZen) {
-          updates.bestScoreZen = state.score;
-        } else if (state.mode === 'songkran' && state.score > state.bestScoreSongkran) {
-          updates.bestScoreSongkran = state.score;
-        } else if (state.mode === 'frenzy' && state.score > state.bestScoreFrenzy) {
-          updates.bestScoreFrenzy = state.score;
-        } else if (state.mode === 'risk' && state.score > state.bestScoreRisk) {
-          updates.bestScoreRisk = state.score;
-        } else if (state.mode === 'memory' && state.score > state.bestScoreMemory) {
-          updates.bestScoreMemory = state.score;
-        } else if (state.mode === 'combo_master' && state.score > state.bestScoreComboMaster) {
-          updates.bestScoreComboMaster = state.score;
-        } else if (state.mode === 'tsunami' && state.score > state.bestScoreTsunami) {
-          updates.bestScoreTsunami = state.score;
-        } else if (state.mode === 'precision' && state.score > state.bestScorePrecision) {
-          updates.bestScorePrecision = state.score;
-        } else if (state.mode === 'chaos' && state.score > state.bestScoreChaos) {
-          updates.bestScoreChaos = state.score;
-        } else if (state.mode === 'time_freeze' && state.score > state.bestScoreTimeFreeze) {
-          updates.bestScoreTimeFreeze = state.score;
-        }
-
-        set(updates);
+        set({
+          status: 'gameover',
+          endReason: resolvedReason,
+          bestScores,
+          isEnergyActive: false,
+          timeScale: 1,
+        });
       },
     }),
     {
       name: 'fruit-ninja-storage',
+      storage: createJSONStorage(() =>
+        typeof window === 'undefined' ? noopStorage : window.localStorage,
+      ),
       partialize: (state) => ({
-        bestScoreClassic: state.bestScoreClassic,
-        bestScoreArcade: state.bestScoreArcade,
-        bestScoreZen: state.bestScoreZen,
-        bestScoreSongkran: state.bestScoreSongkran,
-        bestScoreFrenzy: state.bestScoreFrenzy,
-        bestScoreRisk: state.bestScoreRisk,
-        bestScoreMemory: state.bestScoreMemory,
-        bestScoreComboMaster: state.bestScoreComboMaster,
-        bestScoreTsunami: state.bestScoreTsunami,
-        bestScorePrecision: state.bestScorePrecision,
-        bestScoreChaos: state.bestScoreChaos,
-        bestScoreTimeFreeze: state.bestScoreTimeFreeze,
+        bestScores: state.bestScores,
         soundEnabled: state.soundEnabled,
-        musicEnabled: state.musicEnabled,
       }),
     },
   ),

@@ -1,4 +1,12 @@
-import { Container, Sprite, Assets, Graphics, Texture, TilingSprite, BlurFilter } from 'pixi.js';
+import {
+  Assets,
+  BlurFilter,
+  Container,
+  Graphics,
+  Sprite,
+  Texture,
+  TilingSprite,
+} from 'pixi.js';
 import type { ThemeConfig } from '../config/ThemeConfig';
 
 interface FloatingParticle {
@@ -9,38 +17,42 @@ interface FloatingParticle {
   vy: number;
   life: number;
   maxLife: number;
-  size: number;
-  color: number;
 }
 
 const MAX_FLOATING_PARTICLES = 40;
 const WATER_ALPHA = 0.12;
 const PARALLAX_STRENGTH = 0.0003;
+const FLOATING_PARTICLE_COLORS = [0x42a5f5, 0x81d4fa, 0xfff59d, 0xc8e6c9, 0xffcc80];
 
 export class BackgroundSystem {
-  private container: Container;
+  private readonly container: Container;
+  private readonly particleLayer: Container;
+  private readonly theme: ThemeConfig;
+  private readonly generateTexture: (graphics: Graphics) => Texture;
+
   private bgSprite: Sprite | null = null;
   private waterTile: TilingSprite | null = null;
-  private particleLayer: Container;
+  private waterFallback: Graphics | null = null;
   private particles: FloatingParticle[] = [];
-  private theme: ThemeConfig;
-
   private screenWidth = 0;
   private screenHeight = 0;
   private elapsed = 0;
 
-  constructor(parent: Container, theme: ThemeConfig) {
+  constructor(
+    parent: Container,
+    theme: ThemeConfig,
+    generateTexture: (graphics: Graphics) => Texture,
+  ) {
     this.theme = theme;
+    this.generateTexture = generateTexture;
     this.container = new Container();
     this.particleLayer = new Container();
-
     parent.addChild(this.container);
   }
 
   public init(width: number, height: number) {
     this.screenWidth = width;
     this.screenHeight = height;
-
     this.drawStaticBackground();
 
     if (this.theme.hasWaterOverlay) {
@@ -67,11 +79,12 @@ export class BackgroundSystem {
     this.fitCover(this.bgSprite, texture);
 
     if (this.theme.blurStrength && this.theme.blurStrength > 0) {
-      const blurFilter = new BlurFilter({
-        strength: this.theme.blurStrength,
-        quality: 4,
-      });
-      this.bgSprite.filters = [blurFilter];
+      this.bgSprite.filters = [
+        new BlurFilter({
+          strength: this.theme.blurStrength,
+          quality: 4,
+        }),
+      ];
     }
 
     this.container.addChildAt(this.bgSprite, 0);
@@ -95,30 +108,35 @@ export class BackgroundSystem {
       this.waterTile = null;
     }
 
-    const g = new Graphics();
-    const tileW = 256;
-    const tileH = 64;
-
-    for (let x = 0; x < tileW; x++) {
-      const waveY = Math.sin((x / tileW) * Math.PI * 4) * 8 + tileH * 0.5;
-      const alpha = 0.3 + Math.sin((x / tileW) * Math.PI * 2) * 0.15;
-      g.circle(x, waveY, 2 + Math.random() * 3);
-      g.fill({ color: 0x42a5f5, alpha });
+    if (this.waterFallback) {
+      this.waterFallback.destroy();
+      this.waterFallback = null;
     }
 
-    const renderer = (globalThis as Record<string, unknown>).__pixiApp as { renderer?: { generateTexture: (g: Graphics) => Texture } } | undefined;
+    const graphics = new Graphics();
+    const tileWidth = 256;
+    const tileHeight = 64;
+
+    for (let x = 0; x < tileWidth; x++) {
+      const waveY = Math.sin((x / tileWidth) * Math.PI * 4) * 8 + tileHeight * 0.5;
+      const alpha = 0.3 + Math.sin((x / tileWidth) * Math.PI * 2) * 0.15;
+      graphics.circle(x, waveY, 2 + Math.random() * 3);
+      graphics.fill({ color: 0x42a5f5, alpha });
+    }
 
     let waterTexture: Texture | null = null;
-    if (renderer?.renderer) {
-      waterTexture = renderer.renderer.generateTexture(g);
+    try {
+      waterTexture = this.generateTexture(graphics);
+    } catch {
+      waterTexture = null;
     }
-    g.destroy();
+    graphics.destroy();
 
     if (!waterTexture) {
-      const fallbackG = new Graphics();
-      fallbackG.rect(0, 0, this.screenWidth, 80);
-      fallbackG.fill({ color: 0x42a5f5, alpha: WATER_ALPHA });
-      this.container.addChild(fallbackG);
+      this.waterFallback = new Graphics();
+      this.waterFallback.rect(0, 0, this.screenWidth, 80);
+      this.waterFallback.fill({ color: 0x42a5f5, alpha: WATER_ALPHA });
+      this.container.addChild(this.waterFallback);
       return;
     }
 
@@ -133,36 +151,48 @@ export class BackgroundSystem {
   }
 
   private seedParticles() {
-    for (let i = 0; i < MAX_FLOATING_PARTICLES; i++) {
-      this.spawnParticle(true);
+    if (this.particles.length > 0) return;
+
+    for (let index = 0; index < MAX_FLOATING_PARTICLES; index++) {
+      const graphics = new Graphics();
+      graphics.visible = true;
+      this.particleLayer.addChild(graphics);
+
+      const particle: FloatingParticle = {
+        graphics,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        life: 0,
+        maxLife: 1,
+      };
+
+      this.resetParticle(particle, true);
+      this.particles.push(particle);
     }
   }
 
-  private spawnParticle(randomizeLife: boolean) {
-    const colors = [0x42a5f5, 0x81d4fa, 0xfff59d, 0xc8e6c9, 0xffcc80];
-    const color = colors[Math.floor(Math.random() * colors.length)];
+  private resetParticle(particle: FloatingParticle, randomizeLife: boolean) {
+    const color =
+      FLOATING_PARTICLE_COLORS[
+        Math.floor(Math.random() * FLOATING_PARTICLE_COLORS.length)
+      ];
     const size = 1.5 + Math.random() * 3;
     const maxLife = 200 + Math.random() * 400;
 
-    const g = new Graphics();
-    g.circle(0, 0, size);
-    g.fill({ color, alpha: 0.6 });
+    particle.x = Math.random() * this.screenWidth;
+    particle.y = Math.random() * this.screenHeight;
+    particle.vx = (Math.random() - 0.5) * 0.3;
+    particle.vy = -(0.1 + Math.random() * 0.4);
+    particle.maxLife = maxLife;
+    particle.life = randomizeLife ? Math.random() * maxLife : maxLife;
 
-    const particle: FloatingParticle = {
-      graphics: g,
-      x: Math.random() * this.screenWidth,
-      y: Math.random() * this.screenHeight,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: -(0.1 + Math.random() * 0.4),
-      life: randomizeLife ? Math.random() * maxLife : maxLife,
-      maxLife,
-      size,
-      color,
-    };
-
-    g.position.set(particle.x, particle.y);
-    this.particleLayer.addChild(g);
-    this.particles.push(particle);
+    particle.graphics.clear();
+    particle.graphics.circle(0, 0, size);
+    particle.graphics.fill({ color, alpha: 0.6 });
+    particle.graphics.position.set(particle.x, particle.y);
+    particle.graphics.alpha = 0.6;
   }
 
   public update(dt: number) {
@@ -186,20 +216,21 @@ export class BackgroundSystem {
   }
 
   private updateParticles(dt: number) {
-    for (let i = this.particles.length - 1; i >= 0; i--) {
-      const p = this.particles[i];
-      p.life -= dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
+    for (const particle of this.particles) {
+      particle.life -= dt;
+      particle.x += particle.vx * dt;
+      particle.y += particle.vy * dt;
 
-      p.graphics.position.set(p.x, p.y);
-      const lifeRatio = Math.max(0, p.life / p.maxLife);
-      p.graphics.alpha = lifeRatio * 0.6;
+      particle.graphics.position.set(particle.x, particle.y);
+      particle.graphics.alpha = Math.max(0, particle.life / particle.maxLife) * 0.6;
 
-      if (p.life <= 0 || p.y < -20 || p.x < -20 || p.x > this.screenWidth + 20) {
-        p.graphics.destroy();
-        this.particles.splice(i, 1);
-        this.spawnParticle(false);
+      if (
+        particle.life <= 0 ||
+        particle.y < -20 ||
+        particle.x < -20 ||
+        particle.x > this.screenWidth + 20
+      ) {
+        this.resetParticle(particle, false);
       }
     }
   }
@@ -219,23 +250,27 @@ export class BackgroundSystem {
       this.waterTile.width = width;
       this.waterTile.y = height - 120;
     }
+
+    if (this.waterFallback) {
+      this.waterFallback.clear();
+      this.waterFallback.rect(0, 0, width, 80);
+      this.waterFallback.fill({ color: 0x42a5f5, alpha: WATER_ALPHA });
+    }
   }
 
   public destroy() {
-    for (const p of this.particles) {
-      p.graphics.destroy();
+    for (const particle of this.particles) {
+      particle.graphics.destroy();
     }
     this.particles.length = 0;
 
-    if (this.waterTile) {
-      this.waterTile.destroy();
-      this.waterTile = null;
-    }
+    this.waterTile?.destroy();
+    this.waterTile = null;
+    this.waterFallback?.destroy();
+    this.waterFallback = null;
 
-    if (this.bgSprite) {
-      this.bgSprite.destroy();
-      this.bgSprite = null;
-    }
+    this.bgSprite?.destroy();
+    this.bgSprite = null;
 
     this.particleLayer.destroy();
     this.container.destroy();

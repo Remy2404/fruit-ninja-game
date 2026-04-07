@@ -1,27 +1,13 @@
-import { Container, Sprite, Assets } from 'pixi.js';
-import type { SliceableObjectDef } from '../config/ThemeConfig';
+import { Assets, Container, Sprite } from 'pixi.js';
 
-export type FruitType =
-  | 'watermelon'
-  | 'apple'
-  | 'orange'
-  | 'coconut'
-  | 'banana'
-  | 'pineapple'
-  | 'strawberry'
-  | 'cherry'
-  | 'grape'
-  | 'blueberry'
-  | 'raspberry'
-  | 'peach'
-  | 'plum'
-  | 'kiwi'
-  | 'lemon'
-  | 'lime'
-  | 'mango'
-  | 'dragonfruit'
-  | 'starfruit'
-  | 'pomegranate';
+export interface FruitSpawnDefinition {
+  id: string;
+  assetPath: string;
+  halfAssetPath: string;
+  radius: number;
+  baseScore: number;
+  juiceColor: number;
+}
 
 export class Fruit {
   public id = '';
@@ -45,6 +31,8 @@ export class Fruit {
   public isCritical = false;
   public age = 0;
   public variant: 'normal' | 'gold' | 'cursed' = 'normal';
+  public waveOffsetX = 0;
+  public waveSeed = 0;
 
   public container: Container;
   public sprite: Sprite;
@@ -63,24 +51,26 @@ export class Fruit {
     y: number,
     vx: number,
     vy: number,
-    objectDef: SliceableObjectDef,
+    definition: FruitSpawnDefinition,
   ) {
     this.active = true;
     this.isSliced = false;
     this.isCritical = Math.random() < 0.1;
     this.age = 0;
     this.variant = 'normal';
+    this.waveOffsetX = 0;
+    this.waveSeed = Math.random() * Math.PI * 2;
     this.x = x;
     this.y = y;
     this.vx = vx;
     this.vy = vy;
 
-    this.objectId = objectDef.id;
-    this.assetPath = objectDef.asset;
-    this.halfAssetPath = objectDef.halfAsset;
-    this.radius = objectDef.radius;
-    this.baseScore = objectDef.baseScore;
-    this.juiceColor = objectDef.juiceColor;
+    this.objectId = definition.id;
+    this.assetPath = definition.assetPath;
+    this.halfAssetPath = definition.halfAssetPath;
+    this.radius = definition.radius;
+    this.baseScore = definition.baseScore;
+    this.juiceColor = definition.juiceColor;
 
     this.rotation = Math.random() * Math.PI * 2;
     this.angularVelocity = (Math.random() - 0.5) * 0.15;
@@ -91,30 +81,36 @@ export class Fruit {
     this.container.alpha = 1;
 
     this.applyTexture();
+    this.setVariant('normal');
   }
 
   private applyTexture() {
     const texture = Assets.get(this.assetPath);
-    if (texture) {
-      this.sprite.texture = texture;
-      const texSize = Math.max(texture.width, texture.height) || 100;
-      const scale = ((this.radius * 2) / texSize) * 1.25;
-      this.sprite.scale.set(scale);
-      this.sprite.tint = 0xffffff; // Reset tint
-    }
+    if (!texture) return;
+
+    this.sprite.texture = texture;
+    const textureSize = Math.max(texture.width, texture.height) || 100;
+    const scale = ((this.radius * 2) / textureSize) * 1.25;
+    this.sprite.scale.set(scale);
+    this.sprite.tint = 0xffffff;
   }
 
-  public setVariant(v: 'normal' | 'gold' | 'cursed') {
-    this.variant = v;
-    if (v === 'gold') {
+  public setVariant(variant: 'normal' | 'gold' | 'cursed') {
+    this.variant = variant;
+    if (variant === 'gold') {
       this.sprite.tint = 0xffd700;
-      this.baseScore = 5;
-    } else if (v === 'cursed') {
+    } else if (variant === 'cursed') {
       this.sprite.tint = 0x8800ff;
-      this.baseScore = -10;
     } else {
       this.sprite.tint = 0xffffff;
     }
+  }
+
+  public applyWaveOffset(offsetX: number) {
+    const delta = offsetX - this.waveOffsetX;
+    this.waveOffsetX = offsetX;
+    this.x += delta;
+    this.container.x = this.x;
   }
 
   public update(dt: number, gravity: number) {
@@ -124,7 +120,7 @@ export class Fruit {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
     this.rotation += this.angularVelocity * dt;
-    this.age += dt * 16.66; // approx ms
+    this.age += dt * 16.66;
 
     this.container.position.set(this.x, this.y);
     this.container.rotation = this.rotation;
@@ -133,7 +129,9 @@ export class Fruit {
   public reset() {
     this.active = false;
     this.isSliced = false;
+    this.waveOffsetX = 0;
     this.container.visible = false;
     this.container.alpha = 1;
+    this.sprite.tint = 0xffffff;
   }
 }

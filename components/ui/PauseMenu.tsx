@@ -1,11 +1,17 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { Home, Play, RotateCcw } from 'lucide-react';
 import { useGameStore } from '../../store/useGameStore';
-import { Play, RotateCcw, Home } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 
 export function PauseMenu() {
-  const { setStatus, resetGame } = useGameStore();
+  const { setStatus, resetGame } = useGameStore(
+    useShallow((state) => ({
+      setStatus: state.setStatus,
+      resetGame: state.resetGame,
+    })),
+  );
 
   return (
     <motion.div

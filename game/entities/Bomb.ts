@@ -1,4 +1,4 @@
-import { Container, Sprite, Assets, Graphics } from 'pixi.js';
+import { Assets, Container, Graphics, Sprite } from 'pixi.js';
 
 export class Bomb {
   public id = '';
@@ -13,8 +13,9 @@ export class Bomb {
 
   public rotation = 0;
   public angularVelocity = 0;
-
   public assetPath = '/assets/bomb.svg';
+  public waveOffsetX = 0;
+  public waveSeed = 0;
 
   public container: Container;
   public sprite: Sprite;
@@ -45,6 +46,8 @@ export class Bomb {
   ) {
     this.active = true;
     this.age = 0;
+    this.waveOffsetX = 0;
+    this.waveSeed = Math.random() * Math.PI * 2;
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -67,12 +70,12 @@ export class Bomb {
 
   private applyTexture() {
     const texture = Assets.get(this.assetPath);
-    if (texture) {
-      this.sprite.texture = texture;
-      const texSize = Math.max(texture.width, texture.height) || 100;
-      const scale = ((this.radius * 2) / texSize) * 1.25;
-      this.sprite.scale.set(scale);
-    }
+    if (!texture) return;
+
+    this.sprite.texture = texture;
+    const textureSize = Math.max(texture.width, texture.height) || 100;
+    const scale = ((this.radius * 2) / textureSize) * 1.25;
+    this.sprite.scale.set(scale);
   }
 
   private drawGlow() {
@@ -81,6 +84,13 @@ export class Bomb {
     this.glowGraphics.fill({ color: 0xff3300, alpha: 0.15 });
     this.glowGraphics.circle(0, 0, this.radius * 1.1);
     this.glowGraphics.fill({ color: 0xff5500, alpha: 0.1 });
+  }
+
+  public applyWaveOffset(offsetX: number) {
+    const delta = offsetX - this.waveOffsetX;
+    this.waveOffsetX = offsetX;
+    this.x += delta;
+    this.container.x = this.x;
   }
 
   public update(dt: number, gravity: number) {
@@ -93,8 +103,7 @@ export class Bomb {
     this.age += dt * 16.66;
 
     this.glowPhase += 0.06 * dt;
-    const glowAlpha = 0.12 + Math.sin(this.glowPhase) * 0.08;
-    this.glowGraphics.alpha = glowAlpha;
+    this.glowGraphics.alpha = 0.12 + Math.sin(this.glowPhase) * 0.08;
 
     this.container.position.set(this.x, this.y);
     this.container.rotation = this.rotation;
@@ -102,6 +111,7 @@ export class Bomb {
 
   public reset() {
     this.active = false;
+    this.waveOffsetX = 0;
     this.container.visible = false;
     this.container.alpha = 1;
     this.glowGraphics.clear();

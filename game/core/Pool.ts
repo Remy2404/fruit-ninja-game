@@ -1,82 +1,112 @@
-/**
- * Generic Object Pool for high-performance memory management.
- * Avoids garbage collection stutters by recycling objects instead of 
- * constantly calling `new` and letting objects fall out of scope.
- */
-export class Pool<T> {
-  private inactive: T[] = [];
-  public active: T[] = [];
-  
-  private factory: () => T;
-  private onAlloc?: (obj: T) => void;
-  private onRelease?: (obj: T) => void;
+export interface PoolOptions {
+  initialSize?: number;
+  maxSize?: number;
+  name?: string;
+}
 
-  /**
-   * @param factory Function that instantiates a new object when the pool is empty
-   * @param initialSize How many objects to pre-allocate
-   * @param onAlloc Lifecycle hook called right before returning the object
-   * @param onRelease Lifecycle hook called when object is returned to pool
-   */
+export interface PoolStats {
+  name: string;
+  totalAllocated: number;
+  peakActive: number;
+  exhaustionCount: number;
+}
+
+export class Pool<T> {
+  private readonly inactive: T[] = [];
+  public readonly active: T[] = [];
+
+  private readonly factory: () => T;
+  private readonly onAlloc?: (obj: T) => void;
+  private readonly onRelease?: (obj: T) => void;
+  private readonly maxSize?: number;
+  private readonly name: string;
+  private totalAllocated = 0;
+  private peakActive = 0;
+  private exhaustionCount = 0;
+
   constructor(
     factory: () => T,
-    initialSize: number = 0,
+    optionsOrInitialSize: PoolOptions | number = 0,
     onAlloc?: (obj: T) => void,
-    onRelease?: (obj: T) => void
+    onRelease?: (obj: T) => void,
   ) {
+    const options =
+      typeof optionsOrInitialSize === 'number'
+        ? { initialSize: optionsOrInitialSize }
+        : optionsOrInitialSize;
+
     this.factory = factory;
     this.onAlloc = onAlloc;
     this.onRelease = onRelease;
-    
-    // Pre-allocate to prevent runtime allocation hitches
-    for (let i = 0; i < initialSize; i++) {
-      this.inactive.push(this.factory());
+    this.maxSize = options.maxSize;
+    this.name = options.name ?? 'unnamed-pool';
+
+    const initialSize = options.initialSize ?? 0;
+    for (let index = 0; index < initialSize; index++) {
+      this.inactive.push(this.allocate());
     }
   }
 
-  /**
-   * Retrieves an object from the pool, or creates one if depleted.
-   */
-  get(): T {
-    const obj = this.inactive.pop() || this.factory();
-    this.active.push(obj);
-    
-    if (this.onAlloc) {
-      this.onAlloc(obj);
+  public tryGet(): T | null {
+    const pooled = this.inactive.pop();
+    if (pooled) {
+      return this.activate(pooled);
     }
-    
-    return obj;
+
+    if (this.maxSize !== undefined && this.totalAllocated >= this.maxSize) {
+      this.exhaustionCount++;
+      return null;
+    }
+
+    this.exhaustionCount++;
+    return this.activate(this.allocate());
   }
 
-  /**
-   * Returns an object to the pool.
-   */
-  release(obj: T): void {
+  public get(): T {
+    const pooled = this.tryGet();
+    if (!pooled) {
+      throw new Error(`Pool "${this.name}" exhausted at max size ${this.maxSize ?? 0}`);
+    }
+    return pooled;
+  }
+
+  public release(obj: T): void {
     const index = this.active.indexOf(obj);
-    if (index > -1) {
-      // Fast removal by swapping with last element
-      const last = this.active[this.active.length - 1];
-      this.active[index] = last;
-      this.active.pop();
-      
-      this.inactive.push(obj);
-      
-      if (this.onRelease) {
-        this.onRelease(obj);
-      }
-    }
+    if (index === -1) return;
+
+    const lastIndex = this.active.length - 1;
+    this.active[index] = this.active[lastIndex];
+    this.active.pop();
+    this.inactive.push(obj);
+    this.onRelease?.(obj);
   }
 
-  /**
-   * Releases all active objects back into the pool.
-   */
-  reset(): void {
-    for (let i = 0; i < this.active.length; i++) {
-      const obj = this.active[i];
-      if (this.onRelease) {
-        this.onRelease(obj);
-      }
+  public reset(): void {
+    for (const obj of this.active) {
+      this.onRelease?.(obj);
       this.inactive.push(obj);
     }
     this.active.length = 0;
+  }
+
+  public getStats(): PoolStats {
+    return {
+      name: this.name,
+      totalAllocated: this.totalAllocated,
+      peakActive: this.peakActive,
+      exhaustionCount: this.exhaustionCount,
+    };
+  }
+
+  private allocate(): T {
+    this.totalAllocated++;
+    return this.factory();
+  }
+
+  private activate(obj: T): T {
+    this.active.push(obj);
+    this.peakActive = Math.max(this.peakActive, this.active.length);
+    this.onAlloc?.(obj);
+    return obj;
   }
 }

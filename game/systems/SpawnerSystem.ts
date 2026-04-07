@@ -1,28 +1,29 @@
-import { Fruit } from '../entities/Fruit';
-import { Bomb } from '../entities/Bomb';
-import { Pool } from '../core/Pool';
-import { useGameStore } from '../../store/useGameStore';
 import { Container } from 'pixi.js';
-import type { ThemeConfig, SliceableObjectDef } from '../config/ThemeConfig';
+import { useGameStore } from '../../store/useGameStore';
+import type { GameplayObjectDef } from '../config/ObjectConfig';
+import { getObjectSet } from '../config/ObjectConfig';
+import { getObjectVisual, type ThemeConfig } from '../config/ThemeConfig';
+import { Pool } from '../core/Pool';
+import { Bomb } from '../entities/Bomb';
+import { Fruit, type FruitSpawnDefinition } from '../entities/Fruit';
 import type { ModeConfig } from '../config/ModeConfig';
+import { RiskObjectSpawner } from './RiskObjectSpawner';
 
 export class SpawnerSystem {
-  private fruitPool: Pool<Fruit>;
-  private bombPool: Pool<Bomb>;
-  private fruitLayer: Container;
+  private readonly fruitPool: Pool<Fruit>;
+  private readonly bombPool: Pool<Bomb>;
+  private readonly fruitLayer: Container;
+  private readonly gravity: number;
+  private readonly theme: ThemeConfig;
+  private readonly modeConfig: ModeConfig;
+  private readonly riskSpawner: RiskObjectSpawner | null;
 
   private screenWidth: number;
   private screenHeight: number;
-
   private spawnTimer = 0;
   private spawnInterval: number;
   private waveCount = 0;
-
-  private gravity: number;
-  private theme: ThemeConfig;
-  private modeConfig: ModeConfig;
-
-  private weightedObjects: SliceableObjectDef[] = [];
+  private weightedObjects: GameplayObjectDef[] = [];
   private totalWeight = 0;
 
   constructor(
@@ -43,28 +44,51 @@ export class SpawnerSystem {
     this.gravity = gravity;
     this.theme = theme;
     this.modeConfig = modeConfig;
-    this.spawnInterval = modeConfig.spawnIntervalMs;
+    this.spawnInterval = modeConfig.spawn.baseIntervalMs;
+    this.riskSpawner = modeConfig.risk.enabled
+      ? new RiskObjectSpawner(modeConfig.risk)
+      : null;
 
     this.buildWeightedPool();
   }
 
   private buildWeightedPool() {
-    this.weightedObjects = [];
-    this.totalWeight = 0;
-    for (let i = 0; i < this.theme.objects.length; i++) {
-      const obj = this.theme.objects[i];
-      this.totalWeight += obj.weight;
-      this.weightedObjects.push(obj);
-    }
+    this.weightedObjects = getObjectSet(this.modeConfig.spawn.objectSetId);
+    this.totalWeight = this.weightedObjects.reduce(
+      (total, objectDef) => total + objectDef.weight,
+      0,
+    );
   }
 
-  private pickRandomObject(): SliceableObjectDef {
+  private pickRandomObject(): GameplayObjectDef {
     let roll = Math.random() * this.totalWeight;
-    for (let i = 0; i < this.weightedObjects.length; i++) {
-      roll -= this.weightedObjects[i].weight;
-      if (roll <= 0) return this.weightedObjects[i];
+    for (const objectDef of this.weightedObjects) {
+      roll -= objectDef.weight;
+      if (roll <= 0) return objectDef;
     }
     return this.weightedObjects[this.weightedObjects.length - 1];
+  }
+
+  private buildFruitDefinition(objectDef: GameplayObjectDef): FruitSpawnDefinition {
+    const visual = getObjectVisual(this.theme, objectDef.id);
+    return {
+      id: objectDef.id,
+      assetPath: visual.asset,
+      halfAssetPath: visual.halfAsset,
+      radius: objectDef.radius,
+      baseScore: objectDef.baseScore,
+      juiceColor: visual.juiceColor,
+    };
+  }
+
+  private getMaxGroupSize(score: number): number {
+    let maxGroupSize = this.modeConfig.spawn.maxGroupThresholds[0]?.size ?? 1;
+    for (const threshold of this.modeConfig.spawn.maxGroupThresholds) {
+      if (score >= threshold.score) {
+        maxGroupSize = threshold.size;
+      }
+    }
+    return maxGroupSize;
   }
 
   public resize(width: number, height: number) {
@@ -74,87 +98,84 @@ export class SpawnerSystem {
 
   public resetTimers() {
     this.spawnTimer = 0;
-    this.spawnInterval = this.modeConfig.spawnIntervalMs;
+    this.spawnInterval = this.modeConfig.spawn.baseIntervalMs;
     this.waveCount = 0;
   }
 
   public update(dt: number) {
     this.spawnTimer += dt * 16.66;
 
-    if (this.spawnTimer >= this.spawnInterval) {
-      this.spawnWave();
-      this.spawnTimer = 0;
-      this.waveCount++;
+    if (this.spawnTimer < this.spawnInterval) return;
 
-      const score = useGameStore.getState().score;
-      const baseDiff = this.modeConfig.spawnIntervalMs * 0.375;
-      const minInterval = this.modeConfig.id === 'chaos' ? 150 : Math.max(baseDiff, 500);
-      this.spawnInterval = Math.max(
-        minInterval,
-        this.modeConfig.spawnIntervalMs - score * 8 - this.waveCount * 3,
-      );
-    }
+    this.spawnWave();
+    this.spawnTimer = 0;
+    this.waveCount++;
+
+    const score = useGameStore.getState().score;
+    this.spawnInterval = Math.max(
+      this.modeConfig.spawn.minIntervalMs,
+      this.modeConfig.spawn.baseIntervalMs -
+        score * this.modeConfig.spawn.scoreIntervalReduction -
+        this.waveCount * this.modeConfig.spawn.waveIntervalReduction,
+    );
   }
 
   private spawnWave() {
-    const state = useGameStore.getState();
-    const score = state.score;
-
-    let maxGroupSize = 2;
-    if (score > 30) maxGroupSize = 3;
-    if (score > 80) maxGroupSize = 4;
-    if (score > 150) maxGroupSize = 5;
-    if (score > 250) maxGroupSize = 6;
-
+    const score = useGameStore.getState().score;
+    const maxGroupSize = this.getMaxGroupSize(score);
     const count = Math.floor(Math.random() * maxGroupSize) + 1;
-    const spreadWidth = this.screenWidth * 0.6;
-    const startX = this.screenWidth * 0.2;
+    const spreadWidth = this.screenWidth * this.modeConfig.spawn.spreadWidthRatio;
+    const startX = this.screenWidth * this.modeConfig.spawn.startXRatio;
 
     for (let i = 0; i < count; i++) {
-      const bombChance =
-        !this.modeConfig.allowBombs
-          ? 0
-          : Math.min(0.25, 0.06 + score * 0.001 + this.waveCount * 0.002);
+      const bombChance = !this.modeConfig.bombs.allow
+        ? 0
+        : Math.min(
+            this.modeConfig.spawn.maxBombChance,
+            this.modeConfig.spawn.baseBombChance +
+              score * this.modeConfig.spawn.scoreBombChanceScale +
+              this.waveCount * this.modeConfig.spawn.waveBombChanceScale,
+          );
       const isBomb = Math.random() < bombChance;
-
       const spawnX = startX + Math.random() * spreadWidth;
       const spawnY = this.screenHeight + 60;
-
       const centerOffsetX = (this.screenWidth / 2 - spawnX) * 0.012;
-      const vx = centerOffsetX + (Math.random() - 0.5) * 4;
-
-      const targetHeight = this.screenHeight * (0.6 + Math.random() * 0.2);
+      const vx =
+        centerOffsetX +
+        (Math.random() - 0.5) * this.modeConfig.spawn.lateralVariance;
+      const [minHeightRatio, maxHeightRatio] = this.modeConfig.spawn.targetHeightRange;
+      const [minVelocityScale, maxVelocityScale] =
+        this.modeConfig.spawn.launchVelocityScaleRange;
+      const targetHeight =
+        this.screenHeight * (minHeightRatio + Math.random() * (maxHeightRatio - minHeightRatio));
       const vy =
         -Math.sqrt(2 * this.gravity * targetHeight) *
-        (0.75 + Math.random() * 0.25);
+        (minVelocityScale + Math.random() * (maxVelocityScale - minVelocityScale));
 
       if (isBomb) {
-        const b = this.bombPool.get();
-        if (!b.container.parent) {
-          this.fruitLayer.addChild(b.container);
+        const bomb = this.bombPool.get();
+        if (!bomb.container.parent) {
+          this.fruitLayer.addChild(bomb.container);
         }
-        b.spawn(spawnX, spawnY, vx, vy, this.theme.bombAsset, this.theme.bombRadius);
-      } else {
-        const objectDef = this.pickRandomObject();
-        const f = this.fruitPool.get();
-        if (!f.container.parent) {
-          this.fruitLayer.addChild(f.container);
-        }
-        f.spawn(spawnX, spawnY, vx, vy, objectDef);
-
-        if (this.modeConfig.enableRiskObjects) {
-          const r = Math.random();
-          if (r < 0.15) {
-            f.setVariant('cursed');
-          } else if (r < 0.25) {
-            f.setVariant('gold');
-          } else {
-            f.setVariant('normal');
-          }
-        } else {
-          f.setVariant('normal');
-        }
+        bomb.spawn(
+          spawnX,
+          spawnY,
+          vx,
+          vy,
+          this.theme.bombAsset,
+          this.modeConfig.bombs.radius,
+        );
+        continue;
       }
+
+      const fruit = this.fruitPool.get();
+      if (!fruit.container.parent) {
+        this.fruitLayer.addChild(fruit.container);
+      }
+
+      const objectDef = this.pickRandomObject();
+      fruit.spawn(spawnX, spawnY, vx, vy, this.buildFruitDefinition(objectDef));
+      this.riskSpawner?.assignVariant(fruit);
     }
   }
 }

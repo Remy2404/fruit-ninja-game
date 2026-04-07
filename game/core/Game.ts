@@ -1,37 +1,37 @@
-import { Application, Container, Assets } from 'pixi.js';
-import { useGameStore } from '../../store/useGameStore';
+import { Application, Assets, Container } from 'pixi.js';
 import { useAchievementStore } from '../../store/useAchievementStore';
-import { InputSystem } from '../systems/InputSystem';
-import { ParticleSystem } from '../systems/ParticleSystem';
-import { SpawnerSystem } from '../systems/SpawnerSystem';
-import { CollisionSystem } from '../systems/CollisionSystem';
-import { JuiceSplashSystem } from '../systems/JuiceSplashSystem';
-import { BackgroundSystem } from '../systems/BackgroundSystem';
-import { ScreenFeedbackSystem } from '../systems/ScreenFeedbackSystem';
-import { audioManager } from '../systems/AudioManager';
-import { Pool } from './Pool';
-import { Fruit } from '../entities/Fruit';
+import { useGameStore } from '../../store/useGameStore';
+import { getModeConfig, type ModeConfig } from '../config/ModeConfig';
+import {
+  buildAssetManifest,
+  getThemeConfig,
+  type ThemeConfig,
+} from '../config/ThemeConfig';
 import { Bomb } from '../entities/Bomb';
-import { getModeConfig } from '../config/ModeConfig';
-import { getThemeConfig, buildAssetManifest } from '../config/ThemeConfig';
-import type { ModeConfig } from '../config/ModeConfig';
-import type { ThemeConfig } from '../config/ThemeConfig';
+import { Fruit } from '../entities/Fruit';
+import { Pool } from './Pool';
+import { runGameplayFramePhase } from './runGameplayFrame';
+import { BackgroundSystem } from '../systems/BackgroundSystem';
+import { CollisionSystem } from '../systems/CollisionSystem';
+import { InputSystem } from '../systems/InputSystem';
+import { JuiceSplashSystem } from '../systems/JuiceSplashSystem';
 import { MemoryFadeSystem } from '../systems/MemoryFadeSystem';
-import { WaveMotionSystem } from '../systems/WaveMotionSystem';
+import { ParticleSystem } from '../systems/ParticleSystem';
+import { RoundTimerSystem } from '../systems/RoundTimerSystem';
+import { ScreenFeedbackSystem } from '../systems/ScreenFeedbackSystem';
+import { SpawnerSystem } from '../systems/SpawnerSystem';
 import { TimeControlSystem } from '../systems/TimeControlSystem';
+import { WaveMotionSystem } from '../systems/WaveMotionSystem';
+import { audioManager } from '../systems/AudioManager';
 
 export class FruitNinjaGame {
-  private app: Application;
-  private isDestroyed = false;
-  private isInitialized = false;
-
-  private backgroundLayer: Container;
-  private splashLayer: Container;
-  private fruitLayer: Container;
-  private vfxLayer: Container;
-  private trailLayer: Container;
-
-  private canvasWrapper: HTMLElement;
+  private readonly app: Application;
+  private readonly backgroundLayer: Container;
+  private readonly splashLayer: Container;
+  private readonly fruitLayer: Container;
+  private readonly vfxLayer: Container;
+  private readonly trailLayer: Container;
+  private readonly canvasWrapper: HTMLElement;
 
   private inputSystem: InputSystem | null = null;
   private particleSystem: ParticleSystem | null = null;
@@ -40,19 +40,19 @@ export class FruitNinjaGame {
   private juiceSplashSystem: JuiceSplashSystem | null = null;
   private backgroundSystem: BackgroundSystem | null = null;
   private screenFeedback: ScreenFeedbackSystem | null = null;
-
   private fruitPool: Pool<Fruit> | null = null;
   private bombPool: Pool<Bomb> | null = null;
-
   private memoryFadeSystem: MemoryFadeSystem | null = null;
   private waveMotionSystem: WaveMotionSystem | null = null;
   private timeControlSystem: TimeControlSystem | null = null;
+  private roundTimerSystem: RoundTimerSystem | null = null;
 
-  private gravity = 0.25;
+  private readonly gravity = 0.25;
   private prevStatus = '';
-
-  private modeConfig: ModeConfig;
-  private themeConfig: ThemeConfig;
+  private isDestroyed = false;
+  private isInitialized = false;
+  private readonly modeConfig: ModeConfig;
+  private readonly themeConfig: ThemeConfig;
 
   constructor(canvasWrapper: HTMLElement) {
     this.canvasWrapper = canvasWrapper;
@@ -72,7 +72,6 @@ export class FruitNinjaGame {
     if (this.isDestroyed) return;
 
     const { width, height } = this.canvasWrapper.getBoundingClientRect();
-
     await this.app.init({
       width,
       height,
@@ -83,32 +82,37 @@ export class FruitNinjaGame {
     });
 
     if (this.isDestroyed) {
-      try { this.app.destroy(true); } catch { /* race */ }
+      try {
+        this.app.destroy(true);
+      } catch {
+        // Ignore Pixi destroy races during teardown.
+      }
       return;
     }
 
-    // Store app reference for BackgroundSystem water texture generation
-    (globalThis as Record<string, unknown>).__pixiApp = this.app;
-
-    const assetManifest = buildAssetManifest(this.themeConfig);
-    await Assets.load(assetManifest);
-
+    await Assets.load(buildAssetManifest(this.themeConfig, this.modeConfig.spawn.objectSetId));
     if (this.isDestroyed) {
-      try { this.app.destroy(true); } catch { /* race */ }
+      try {
+        this.app.destroy(true);
+      } catch {
+        // Ignore Pixi destroy races during teardown.
+      }
       return;
     }
 
     this.canvasWrapper.appendChild(this.app.canvas);
-
     this.app.stage.addChild(this.backgroundLayer);
     this.app.stage.addChild(this.splashLayer);
     this.app.stage.addChild(this.fruitLayer);
     this.app.stage.addChild(this.vfxLayer);
     this.app.stage.addChild(this.trailLayer);
 
-    this.backgroundSystem = new BackgroundSystem(this.backgroundLayer, this.themeConfig);
+    this.backgroundSystem = new BackgroundSystem(
+      this.backgroundLayer,
+      this.themeConfig,
+      (graphics) => this.app.renderer.generateTexture(graphics),
+    );
     this.backgroundSystem.init(width, height);
-
     this.screenFeedback = new ScreenFeedbackSystem(this.app);
 
     window.addEventListener('resize', this.onResize);
@@ -123,16 +127,15 @@ export class FruitNinjaGame {
 
     this.fruitPool = new Pool<Fruit>(
       () => new Fruit(),
-      40,
+      { initialSize: 40, name: 'fruit-pool' },
       undefined,
-      (obj) => obj.reset(),
+      (fruit) => fruit.reset(),
     );
-
     this.bombPool = new Pool<Bomb>(
       () => new Bomb(),
-      10,
+      { initialSize: 10, name: 'bomb-pool' },
       undefined,
-      (obj) => obj.reset(),
+      (bomb) => bomb.reset(),
     );
 
     this.spawnerSystem = new SpawnerSystem(
@@ -145,7 +148,6 @@ export class FruitNinjaGame {
       this.themeConfig,
       this.modeConfig,
     );
-
     this.collisionSystem = new CollisionSystem(
       this.inputSystem,
       this.fruitPool,
@@ -155,10 +157,18 @@ export class FruitNinjaGame {
       this.modeConfig,
       this.screenFeedback,
     );
-
-    this.memoryFadeSystem = new MemoryFadeSystem(this.fruitPool, this.bombPool, this.modeConfig);
-    this.waveMotionSystem = new WaveMotionSystem(this.fruitPool, this.bombPool, this.modeConfig);
+    this.memoryFadeSystem = new MemoryFadeSystem(
+      this.fruitPool,
+      this.bombPool,
+      this.modeConfig,
+    );
+    this.waveMotionSystem = new WaveMotionSystem(
+      this.fruitPool,
+      this.bombPool,
+      this.modeConfig,
+    );
     this.timeControlSystem = new TimeControlSystem(this.modeConfig);
+    this.roundTimerSystem = new RoundTimerSystem();
 
     this.app.ticker.add(this.update);
     this.isInitialized = true;
@@ -180,19 +190,18 @@ export class FruitNinjaGame {
     this.fruitPool?.reset();
     this.bombPool?.reset();
 
-    delete (globalThis as Record<string, unknown>).__pixiApp;
-
     if (this.isInitialized && this.app.renderer) {
       try {
         this.app.destroy({ removeView: true });
       } catch {
-        /* Pixi v8 destroy race (e.g. _cancelResize) is non-critical */
+        // Ignore Pixi v8 destroy races during teardown.
       }
     }
   }
 
   private onResize = () => {
-    if (this.isDestroyed || !this.canvasWrapper || !this.app.renderer) return;
+    if (this.isDestroyed || !this.app.renderer) return;
+
     const { width, height } = this.canvasWrapper.getBoundingClientRect();
     this.app.renderer.resize(width, height);
     this.backgroundSystem?.resize(width, height);
@@ -203,17 +212,20 @@ export class FruitNinjaGame {
   private update = () => {
     if (this.isDestroyed || !this.isInitialized) return;
 
-    const dt = this.app.ticker.deltaTime;
-    const state = useGameStore.getState();
-    const timeScale = state.timeScale || 1.0;
-    const scaledDt = dt * timeScale;
-    const status = state.status;
+    const frameDt = this.app.ticker.deltaTime;
+    const frameMs = frameDt * 16.66;
+    const stateBeforeSystems = useGameStore.getState();
+    const status = stateBeforeSystems.status;
 
-    this.timeControlSystem?.update(dt);
+    this.roundTimerSystem?.update(frameMs);
+    this.timeControlSystem?.update(frameMs);
 
-    this.inputSystem!.update(dt);
-    this.particleSystem!.update(scaledDt, this.gravity);
-    this.juiceSplashSystem!.update(scaledDt);
+    const timeScale = useGameStore.getState().timeScale || 1;
+    const scaledDt = frameDt * timeScale;
+
+    this.inputSystem?.update();
+    this.particleSystem?.update(scaledDt, this.gravity);
+    this.juiceSplashSystem?.update(scaledDt);
     this.backgroundSystem?.update(scaledDt);
     this.screenFeedback?.update(scaledDt);
 
@@ -226,74 +238,85 @@ export class FruitNinjaGame {
     }
 
     this.prevStatus = status;
+    if (useGameStore.getState().status !== 'playing') return;
 
-    if (status !== 'playing') return;
+    runGameplayFramePhase({
+      getStatus: () => useGameStore.getState().status,
+      runSpawner: () => this.spawnerSystem?.update(scaledDt),
+      runCollision: () => this.collisionSystem?.update(),
+      runMemoryFade: () => this.memoryFadeSystem?.update(),
+      runWaveMotion: () => this.waveMotionSystem?.update(scaledDt),
+      runEntityUpdates: () => this.updateActiveEntities(scaledDt),
+    });
+  };
 
-    this.spawnerSystem!.update(scaledDt);
-    this.collisionSystem!.update(scaledDt);
-    
-    this.memoryFadeSystem?.update(scaledDt);
-    this.waveMotionSystem?.update(scaledDt);
+  private updateActiveEntities(scaledDt: number) {
+    if (!this.fruitPool || !this.bombPool) return;
 
-    const { height } = this.app.renderer;
+    const rendererHeight = this.app.renderer.height;
 
-    for (let i = this.fruitPool!.active.length - 1; i >= 0; i--) {
-      const fruit = this.fruitPool!.active[i];
+    for (let index = this.fruitPool.active.length - 1; index >= 0; index--) {
+      const fruit = this.fruitPool.active[index];
       fruit.update(scaledDt, this.gravity);
 
-      if (fruit.y > height + 150) {
-        if (!fruit.isSliced) {
-          const currentState = useGameStore.getState();
-          currentState.recordMiss();
+      if (fruit.y <= rendererHeight + 150) continue;
 
-          if (this.modeConfig.missCostsLife) {
-            currentState.loseLife();
-            audioManager.play('miss');
-          }
-
-          const postMissState = useGameStore.getState();
-          useAchievementStore.getState().checkAndUnlock({
-            fruitsSliced: postMissState.fruitsSliced,
-            bombsDodged: postMissState.bombsDodged,
-            sliceMisses: postMissState.sliceMisses,
-            maxCombo: postMissState.maxCombo,
-            score: postMissState.score,
-            mode: postMissState.mode,
-            timeLeft: postMissState.timeLeft,
-            sessionStartTime: postMissState.sessionStartTime,
-          });
+      if (!fruit.isSliced) {
+        const state = useGameStore.getState();
+        state.recordFruitMissed();
+        if (this.modeConfig.misses.costsLife) {
+          state.loseLife();
+          audioManager.play('miss');
         }
-        this.fruitPool!.release(fruit);
+        this.unlockAchievementsFromState();
+
+        if (useGameStore.getState().status !== 'playing') {
+          this.fruitPool.release(fruit);
+          return;
+        }
       }
+
+      this.fruitPool.release(fruit);
     }
 
-    for (let i = this.bombPool!.active.length - 1; i >= 0; i--) {
-      const bomb = this.bombPool!.active[i];
+    for (let index = this.bombPool.active.length - 1; index >= 0; index--) {
+      const bomb = this.bombPool.active[index];
       bomb.update(scaledDt, this.gravity);
 
-      if (bomb.y > height + 150) {
-        const dodgeState = useGameStore.getState();
-        dodgeState.recordBombDodged();
-        const postDodgeState = useGameStore.getState();
-        useAchievementStore.getState().checkAndUnlock({
-          fruitsSliced: postDodgeState.fruitsSliced,
-          bombsDodged: postDodgeState.bombsDodged,
-          sliceMisses: postDodgeState.sliceMisses,
-          maxCombo: postDodgeState.maxCombo,
-          score: postDodgeState.score,
-          mode: postDodgeState.mode,
-          timeLeft: postDodgeState.timeLeft,
-          sessionStartTime: postDodgeState.sessionStartTime,
-        });
-        this.bombPool!.release(bomb);
+      if (bomb.y <= rendererHeight + 150) continue;
+
+      useGameStore.getState().recordBombDodged();
+      this.unlockAchievementsFromState();
+      this.bombPool.release(bomb);
+
+      if (useGameStore.getState().status !== 'playing') {
+        return;
       }
     }
-  };
+  }
+
+  private unlockAchievementsFromState() {
+    const state = useGameStore.getState();
+    useAchievementStore.getState().checkAndUnlock({
+      fruitsSliced: state.fruitsSliced,
+      bombsDodged: state.bombsDodged,
+      fruitsMissed: state.fruitsMissed,
+      maxCombo: state.maxCombo,
+      score: state.score,
+      mode: state.mode,
+      timeLeft: state.timeLeft,
+      sessionStartTime: state.sessionStartTime,
+    });
+  }
 
   private onGameStart() {
     this.fruitPool?.reset();
     this.bombPool?.reset();
     this.spawnerSystem?.resetTimers();
+    this.waveMotionSystem?.reset();
+    this.roundTimerSystem?.reset();
+    this.collisionSystem?.reset();
+    this.inputSystem?.reset();
     this.juiceSplashSystem?.clear();
     audioManager.play('start');
     useAchievementStore.getState().resetSession();
