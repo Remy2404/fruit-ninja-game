@@ -71,6 +71,7 @@ export class SpawnerSystem {
 
   private buildFruitDefinition(objectDef: GameplayObjectDef): FruitSpawnDefinition {
     const visual = getObjectVisual(this.theme, objectDef.id);
+    const textureScale = this.modeConfig.spawn.objectSetId === 'khmerSongkran' ? 2 : 1.30;
     return {
       id: objectDef.id,
       assetPath: visual.asset,
@@ -78,6 +79,7 @@ export class SpawnerSystem {
       radius: objectDef.radius,
       baseScore: objectDef.baseScore,
       juiceColor: visual.juiceColor,
+      textureScale,
     };
   }
 
@@ -123,13 +125,13 @@ export class SpawnerSystem {
   private spawnWave() {
     const score = useGameStore.getState().score;
     const maxGroupSize = this.getMaxGroupSize(score);
-    const count = Math.floor(Math.random() * maxGroupSize) + 1;
+    // Right-skewed: multiplying two randoms biases towards smaller groups.
+    // P(size=1) is highest; large groups are rare and feel special — exactly
+    // like original Fruit Ninja where multi-fruit waves are the exception.
+    const count = Math.max(1, Math.ceil(Math.random() * Math.random() * maxGroupSize));
     const spreadWidth = this.screenWidth * this.modeConfig.spawn.spreadWidthRatio;
     const startX = this.screenWidth * this.modeConfig.spawn.startXRatio;
 
-    // Roll bomb decision ONCE per wave — not per object.
-    // Rolling per-object compounds: a group of 6 at 15% each gives a 62% chance
-    // of containing a bomb. One roll per wave keeps the true rate at baseBombChance.
     const bombChance = !this.modeConfig.bombs.allow
       ? 0
       : Math.min(

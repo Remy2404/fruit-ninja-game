@@ -128,12 +128,14 @@ interface ModeConfigOverrides {
   spawn?: Partial<SpawnRules>;
 }
 
+// Original Fruit Ninja: starts with single fruits, multi-fruit groups unlock gradually.
+// Group size 2 unlocks at ~50 pts, 3 at ~100, 4 at ~200, 5 at ~350 (rare).
 const DEFAULT_SPAWN_THRESHOLDS = [
-  { score: 0, size: 2 },
-  { score: 31, size: 3 },
-  { score: 81, size: 4 },
-  { score: 151, size: 5 },
-  { score: 251, size: 6 },
+  { score: 0,   size: 1 },
+  { score: 50,  size: 2 },
+  { score: 100, size: 3 },
+  { score: 200, size: 4 },
+  { score: 350, size: 5 },
 ];
 
 function createModeConfig(
@@ -213,19 +215,22 @@ function createModeConfig(
     spawn: {
       baseIntervalMs: 1600,
       minIntervalMs: 600,
-      scoreIntervalReduction: 8,
-      waveIntervalReduction: 3,
+      // Original ramps slowly: 1600→600ms over ~200+ score / 300+ waves.
+      // scoreIntervalReduction 8 hit minimum at score ~125 — far too fast.
+      scoreIntervalReduction: 3,
+      waveIntervalReduction: 1,
       maxBombChance: 0.25,
       baseBombChance: 0.15,
       scoreBombChanceScale: 0.001,
-      // Slower ramp: hits maxBombChance at ~100 waves instead of ~50.
       waveBombChanceScale: 0.001,
       maxGroupThresholds: DEFAULT_SPAWN_THRESHOLDS,
       spreadWidthRatio: 0.6,
       startXRatio: 0.2,
       lateralVariance: 4,
-      targetHeightRange: [0.6, 0.8],
-      launchVelocityScaleRange: [0.75, 1],
+      // Original throws fruits to varied heights — some near top, some mid.
+      targetHeightRange: [0.50, 0.85],
+      // Wider velocity range creates the organic, unpredictable arcs original has.
+      launchVelocityScaleRange: [0.70, 1.05],
       objectSetId: 'default',
       ...overrides.spawn,
     },
@@ -262,8 +267,6 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     timerSeconds: 60,
     bombs: { endsGame: false, scorePenalty: -10 },
     misses: { costsLife: false },
-    // Bombs don't end the game → they accumulate on screen. Cap lower so the
-    // board doesn't become a minefield in a 60-second run.
     spawn: { baseBombChance: 0.10, maxBombChance: 0.15 },
   }),
   zen: createModeConfig('zen', {
@@ -314,7 +317,6 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     bombs: { endsGame: false, scorePenalty: -10, radius: 44 },
     misses: { costsLife: false },
     scoring: { modeMultiplier: 1.5 },
-    // Fast spawn (337ms min) + no game-over bombs → cap lower to prevent bomb floods.
     spawn: { baseIntervalMs: 900, minIntervalMs: 337.5, objectSetId: 'khmerSongkran', baseBombChance: 0.10, maxBombChance: 0.15 },
   }),
   risk: createModeConfig('risk', {

@@ -7,6 +7,8 @@ export interface FruitSpawnDefinition {
   radius: number;
   baseScore: number;
   juiceColor: number;
+  /** Visual scale multiplier applied on top of radius-fit. Default: 1.30 */
+  textureScale?: number;
 }
 
 export class Fruit {
@@ -33,6 +35,7 @@ export class Fruit {
   public variant: 'normal' | 'gold' | 'cursed' = 'normal';
   public waveOffsetX = 0;
   public waveSeed = 0;
+  public textureScale = 1.30;
 
   public container: Container;
   public sprite: Sprite;
@@ -71,6 +74,7 @@ export class Fruit {
     this.radius = definition.radius;
     this.baseScore = definition.baseScore;
     this.juiceColor = definition.juiceColor;
+    this.textureScale = definition.textureScale ?? 1.30;
 
     this.rotation = Math.random() * Math.PI * 2;
     this.angularVelocity = (Math.random() - 0.5) * 0.15;
@@ -90,7 +94,7 @@ export class Fruit {
 
     this.sprite.texture = texture;
     const textureSize = Math.max(texture.width, texture.height) || 100;
-    const scale = ((this.radius * 2) / textureSize) * 1.25;
+    const scale = ((this.radius * 2) / textureSize) * this.textureScale;
     this.sprite.scale.set(scale);
     this.sprite.tint = 0xffffff;
   }
