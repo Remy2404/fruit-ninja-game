@@ -56,7 +56,7 @@ export function Navbar() {
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[linear-gradient(135deg,var(--accent-red),var(--accent-yellow))] text-lg font-black text-white shadow-[0_14px_30px_-18px_rgba(255,104,72,0.9)]">
             F
           </span>
-          <span className="font-display text-base tracking-[-0.03em] sm:text-lg">Fruit Ninja HTML5</span>
+          <span className="font-display text-base tracking-[-0.03em] sm:text-lg">Fruit Ninja</span>
         </Link>
 
         <div className="hidden items-center gap-1 lg:flex">

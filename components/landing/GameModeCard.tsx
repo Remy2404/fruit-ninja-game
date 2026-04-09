@@ -48,7 +48,9 @@ export function GameModeCard({ mode }: GameModeCardProps) {
             animate={reduceMotion ? undefined : { rotate: [0, 12, -8, 0], y: [0, -4, 0] }}
             transition={{ duration: 6.8, ease: 'easeInOut', repeat: Number.POSITIVE_INFINITY }}
           >
-            <Image alt="" height={78} src={mode.assetSrc} width={78} />
+            <div className="relative h-[78px] w-[78px]">
+              <Image alt="" className="object-contain" fill sizes="78px" src={mode.assetSrc} />
+            </div>
           </motion.div>
         </div>
 

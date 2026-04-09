@@ -49,13 +49,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: 'Slice Fast. Think Faster. | Fruit Ninja HTML5',
+  title: 'Slice Fast. Think Faster. | Fruit Ninja',
   description:
     'Experience a modern Fruit Ninja-style arcade game in your browser with precision slicing, combo chasing, and twelve unique game modes.',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Fruit Ninja HTML5',
+    title: 'Fruit Ninja',
   },
 };
 

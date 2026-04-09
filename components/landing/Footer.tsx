@@ -19,7 +19,7 @@ export function Footer() {
       <div className="glass-panel rounded-[2rem] px-5 py-6 sm:px-7 sm:py-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="font-display text-2xl tracking-[-0.04em] text-[color:var(--foreground)]">Fruit Ninja HTML5</p>
+            <p className="font-display text-2xl tracking-[-0.04em] text-[color:var(--foreground)]">Fruit Ninja</p>
             <p className="mt-3 max-w-lg text-sm leading-6 text-[color:var(--foreground-muted)]">
               A modern browser arcade experience with clean motion, strong hierarchy, and a landing page tuned for play conversion.
             </p>
@@ -58,7 +58,7 @@ export function Footer() {
         </div>
 
         <div className="mt-6 border-t border-[color:var(--border-strong)] pt-4 text-sm text-[color:var(--foreground-soft)]">
-          © 2026 Fruit Ninja HTML5. Crafted for speed, clarity, and repeat play.
+          © 2026 Fruit Ninja. Crafted for speed, clarity, and repeat play.
         </div>
       </div>
     </footer>

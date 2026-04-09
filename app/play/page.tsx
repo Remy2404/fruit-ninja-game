@@ -3,7 +3,7 @@ import { GameOverlay } from '@/components/game/GameOverlay';
 import { GameRouteBootstrap } from '@/components/game/GameRouteBootstrap';
 
 export const metadata: Metadata = {
-  title: 'Play Now | Fruit Ninja HTML5',
+  title: 'Play Now | Fruit Ninja',
   description: 'Jump straight into the browser arcade experience and start slicing fruit immediately.',
 };
 
