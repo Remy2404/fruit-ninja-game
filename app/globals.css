@@ -1,16 +1,188 @@
 @import "tailwindcss";
 
-html, body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  overscroll-behavior: none; 
-  touch-action: none; /* Prevents pull-to-refresh or swiping back on mobile */
-  background-color: #111116;
-  color: #ededed;
-  font-family: system-ui, -apple-system, sans-serif;
+:root {
+  color-scheme: light;
+  --page-background: #fff7ef;
+  --page-background-secondary: #fffdf8;
+  --page-gradient-start: rgba(255, 214, 102, 0.44);
+  --page-gradient-middle: rgba(255, 135, 66, 0.20);
+  --page-gradient-end: rgba(111, 214, 152, 0.18);
+  --surface: rgba(255, 255, 255, 0.72);
+  --surface-strong: rgba(255, 255, 255, 0.9);
+  --surface-muted: rgba(255, 250, 244, 0.82);
+  --border-strong: rgba(12, 18, 28, 0.10);
+  --border-soft: rgba(255, 255, 255, 0.68);
+  --foreground: #101a26;
+  --foreground-muted: #52606f;
+  --foreground-soft: #738090;
+  --accent-red: #ff6848;
+  --accent-orange: #ff9a3e;
+  --accent-yellow: #f4c84a;
+  --accent-green: #69be50;
+  --shadow-rgb: 14 24 38;
+  --ring: rgba(255, 104, 72, 0.45);
 }
 
+[data-theme='dark'] {
+  color-scheme: dark;
+  --page-background: #08101a;
+  --page-background-secondary: #101b28;
+  --page-gradient-start: rgba(255, 132, 77, 0.20);
+  --page-gradient-middle: rgba(132, 76, 255, 0.10);
+  --page-gradient-end: rgba(92, 205, 132, 0.14);
+  --surface: rgba(15, 23, 35, 0.72);
+  --surface-strong: rgba(11, 18, 29, 0.88);
+  --surface-muted: rgba(18, 28, 43, 0.82);
+  --border-strong: rgba(255, 255, 255, 0.10);
+  --border-soft: rgba(255, 255, 255, 0.18);
+  --foreground: #f5f7fb;
+  --foreground-muted: #b8c1cc;
+  --foreground-soft: #90a0b4;
+  --accent-red: #ff7a5f;
+  --accent-orange: #ffa13c;
+  --accent-yellow: #f7cf57;
+  --accent-green: #6ccc63;
+  --shadow-rgb: 0 0 0;
+  --ring: rgba(255, 161, 60, 0.36);
+}
 
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--page-background);
+}
+
+body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+  background:
+    radial-gradient(circle at top left, var(--page-gradient-start), transparent 34%),
+    radial-gradient(circle at 82% 18%, var(--page-gradient-middle), transparent 24%),
+    radial-gradient(circle at 50% 88%, var(--page-gradient-end), transparent 28%),
+    linear-gradient(180deg, var(--page-background-secondary) 0%, var(--page-background) 100%);
+  color: var(--foreground);
+  font-family: var(--font-manrope), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+main {
+  isolation: isolate;
+}
+
+section[id] {
+  scroll-margin-top: 6rem;
+}
+
+a,
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(255, 154, 62, 0.24);
+  color: inherit;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.font-display {
+  font-family: var(--font-space-grotesk), var(--font-manrope), sans-serif;
+}
+
+.section-shell {
+  width: min(100%, 80rem);
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+.glass-panel {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow:
+    0 24px 60px -32px rgba(var(--shadow-rgb), 0.45),
+    inset 0 1px 0 0 var(--border-soft);
+  backdrop-filter: blur(24px);
+}
+
+.subtle-panel {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 18px 36px -28px rgba(var(--shadow-rgb), 0.38);
+}
+
+.section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-muted);
+  color: var(--foreground-muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.section-title {
+  font-family: var(--font-space-grotesk), var(--font-manrope), sans-serif;
+  font-size: clamp(2rem, 5vw, 4.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.04em;
+}
+
+.section-copy {
+  color: var(--foreground-muted);
+  font-size: clamp(1rem, 2vw, 1.1rem);
+  line-height: 1.7;
+  max-width: 42rem;
+}
+
+.fruit-glow {
+  box-shadow:
+    0 14px 30px -18px rgba(255, 154, 62, 0.52),
+    0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+
+@keyframes button-ripple {
+  0% {
+    opacity: 0.32;
+    transform: scale(0.2);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

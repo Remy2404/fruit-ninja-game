@@ -36,6 +36,10 @@ const createBestScores = (): Record<GameMode, number> =>
     {} as Record<GameMode, number>,
   );
 
+export function isGameMode(value: string): value is GameMode {
+  return MODE_ORDER.includes(value as GameMode);
+}
+
 export interface GameStore {
   status: GameState;
   mode: GameMode;
