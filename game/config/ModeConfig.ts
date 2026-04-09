@@ -216,9 +216,10 @@ function createModeConfig(
       scoreIntervalReduction: 8,
       waveIntervalReduction: 3,
       maxBombChance: 0.25,
-      baseBombChance: 0.06,
+      baseBombChance: 0.15,
       scoreBombChanceScale: 0.001,
-      waveBombChanceScale: 0.002,
+      // Slower ramp: hits maxBombChance at ~100 waves instead of ~50.
+      waveBombChanceScale: 0.001,
       maxGroupThresholds: DEFAULT_SPAWN_THRESHOLDS,
       spreadWidthRatio: 0.6,
       startXRatio: 0.2,
@@ -261,6 +262,9 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     timerSeconds: 60,
     bombs: { endsGame: false, scorePenalty: -10 },
     misses: { costsLife: false },
+    // Bombs don't end the game → they accumulate on screen. Cap lower so the
+    // board doesn't become a minefield in a 60-second run.
+    spawn: { baseBombChance: 0.10, maxBombChance: 0.15 },
   }),
   zen: createModeConfig('zen', {
     title: 'ZEN',
@@ -310,7 +314,8 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     bombs: { endsGame: false, scorePenalty: -10, radius: 44 },
     misses: { costsLife: false },
     scoring: { modeMultiplier: 1.5 },
-    spawn: { baseIntervalMs: 900, minIntervalMs: 337.5, objectSetId: 'khmerSongkran' },
+    // Fast spawn (337ms min) + no game-over bombs → cap lower to prevent bomb floods.
+    spawn: { baseIntervalMs: 900, minIntervalMs: 337.5, objectSetId: 'khmerSongkran', baseBombChance: 0.10, maxBombChance: 0.15 },
   }),
   risk: createModeConfig('risk', {
     title: 'RISK',
@@ -358,7 +363,8 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     timerSeconds: 60,
     bombs: { endsGame: false, scorePenalty: -10 },
     misses: { costsLife: false },
-    spawn: { baseIntervalMs: 1000, minIntervalMs: 375 },
+    // Fast spawn (375ms min) + no game-over bombs → cap lower.
+    spawn: { baseIntervalMs: 1000, minIntervalMs: 375, baseBombChance: 0.08, maxBombChance: 0.15 },
     combo: { comboOnly: true },
   }),
   tsunami: createModeConfig('tsunami', {
@@ -407,7 +413,9 @@ const MODE_CONFIGS: Record<GameMode, ModeConfig> = {
     startingLives: 3,
     timerSeconds: 0,
     scoring: { modeMultiplier: 2 },
-    spawn: { baseIntervalMs: 600, minIntervalMs: 150 },
+    // CRITICAL: 150ms min interval = 6.67 waves/sec. At default 15% bomb chance
+    // that's a game-ending bomb every ~1 second. Chaos fun = speed, not bombs.
+    spawn: { baseIntervalMs: 600, minIntervalMs: 150, baseBombChance: 0.06, maxBombChance: 0.12 },
   }),
   time_freeze: createModeConfig('time_freeze', {
     title: 'TIME FREEZE',

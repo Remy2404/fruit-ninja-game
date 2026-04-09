@@ -127,16 +127,22 @@ export class SpawnerSystem {
     const spreadWidth = this.screenWidth * this.modeConfig.spawn.spreadWidthRatio;
     const startX = this.screenWidth * this.modeConfig.spawn.startXRatio;
 
+    // Roll bomb decision ONCE per wave — not per object.
+    // Rolling per-object compounds: a group of 6 at 15% each gives a 62% chance
+    // of containing a bomb. One roll per wave keeps the true rate at baseBombChance.
+    const bombChance = !this.modeConfig.bombs.allow
+      ? 0
+      : Math.min(
+          this.modeConfig.spawn.maxBombChance,
+          this.modeConfig.spawn.baseBombChance +
+            score * this.modeConfig.spawn.scoreBombChanceScale +
+            this.waveCount * this.modeConfig.spawn.waveBombChanceScale,
+        );
+    // If this wave has a bomb, pick exactly one random slot for it.
+    const bombSlot = Math.random() < bombChance ? Math.floor(Math.random() * count) : -1;
+
     for (let i = 0; i < count; i++) {
-      const bombChance = !this.modeConfig.bombs.allow
-        ? 0
-        : Math.min(
-            this.modeConfig.spawn.maxBombChance,
-            this.modeConfig.spawn.baseBombChance +
-              score * this.modeConfig.spawn.scoreBombChanceScale +
-              this.waveCount * this.modeConfig.spawn.waveBombChanceScale,
-          );
-      const isBomb = Math.random() < bombChance;
+      const isBomb = i === bombSlot;
       const spawnX = startX + Math.random() * spreadWidth;
       const spawnY = this.screenHeight + 60;
       const centerOffsetX = (this.screenWidth / 2 - spawnX) * 0.012;

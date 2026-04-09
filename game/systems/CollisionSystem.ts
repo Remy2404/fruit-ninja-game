@@ -99,7 +99,7 @@ export class CollisionSystem {
         { x: p1.x, y: p1.y },
         { x: p2.x, y: p2.y },
         { x: bomb.x, y: bomb.y },
-        bomb.radius + 10,
+        bomb.radius - 4,
       );
 
       if (!isHit) continue;
@@ -266,6 +266,9 @@ export class CollisionSystem {
     if (this.modeConfig.bombs.endsGame) {
       state.endGame('bomb');
       return;
+    }
+    for (let i = this.fruitPool.active.length - 1; i >= 0; i--) {
+      this.fruitPool.release(this.fruitPool.active[i]);
     }
 
     if (this.modeConfig.bombs.scorePenalty !== 0) {
