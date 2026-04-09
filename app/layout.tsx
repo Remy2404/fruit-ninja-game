@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist_Mono, Manrope, Space_Grotesk } from 'next/font/google';
+import 'katex/dist/katex.min.css';
 import './globals.css';
 
 const bodyFont = Manrope({

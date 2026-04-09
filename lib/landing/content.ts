@@ -68,6 +68,38 @@ export interface StatHighlight {
   format?: Intl.NumberFormatOptions;
 }
 
+export interface SpawnMathFormulaCard {
+  caption: string;
+  formulaMarkdown: string;
+  id: string;
+  noteMarkdown: string;
+  title: string;
+}
+
+export interface SpawnMathDistributionRow {
+  count: number;
+  probability: number;
+  ratio: string;
+}
+
+export interface SpawnMathComparisonRow {
+  groupSize: number;
+  newPerWave: string;
+  oldPerObject: string;
+}
+
+export interface SpawnMathModeOverride {
+  bombWindow: string;
+  intervalWindow: string;
+  mode: string;
+  note: string;
+}
+
+export interface SpawnMathInsight {
+  label: string;
+  value: string;
+}
+
 const modeMeta: Record<
   GameMode,
   {
@@ -155,6 +187,7 @@ export const navigationItems: NavigationItem[] = [
   { label: 'Gameplay', href: '#gameplay' },
   { label: 'Features', href: '#features' },
   { label: 'Modes', href: '#modes' },
+  { label: 'Math', href: '#spawn-math' },
   { label: 'Leaderboard', href: '#leaderboard' },
   { label: 'Contact', href: '#footer' },
 ];
@@ -293,6 +326,94 @@ export const statHighlights: StatHighlight[] = [
     suffix: ' min',
     format: { minimumFractionDigits: 1, maximumFractionDigits: 1 },
   },
+];
+
+export const spawnMathFormulaCards: SpawnMathFormulaCard[] = [
+  {
+    id: 'bomb-chance',
+    title: 'Bomb spawn chance',
+    formulaMarkdown: '$$p_{\\text{bomb}}(s,w)=\\min\\!\\left(p_{\\max},\\;p_0+\\alpha_s\\cdot s+\\alpha_w\\cdot w\\right)$$',
+    caption: 'Per-wave calculation',
+    noteMarkdown:
+      'Classic defaults: $p_0 = 0.15$, $p_{\\max} = 0.25$, $\\alpha_s = 0.001$, and $\\alpha_w = 0.001$.',
+  },
+  {
+    id: 'interval-ramp',
+    title: 'Spawn interval ramp',
+    formulaMarkdown:
+      '$$\\Delta t(s,w)=\\max\\!\\left(\\Delta t_{\\min},\\;\\Delta t_0-\\beta_s\\cdot s-\\beta_w\\cdot w\\right)$$',
+    caption: 'Tempo control',
+    noteMarkdown:
+      'Classic pacing ramps from $1600\\,\\text{ms}$ toward a $600\\,\\text{ms}$ floor and reaches minimum at roughly $333$ score.',
+  },
+  {
+    id: 'single-bomb',
+    title: 'One bomb max per wave',
+    formulaMarkdown:
+      '$$\\Pr(\\text{bomb in wave}\\mid\\text{group size }n)=p_{\\text{bomb}}(s,w)\\quad\\forall n\\geq1$$',
+    caption: 'Fairness guarantee',
+    noteMarkdown:
+      'Group size no longer inflates bomb probability. The old compounding bug $1-(1-p)^n$ is gone because the roll now happens once per wave.',
+  },
+  {
+    id: 'group-draw',
+    title: 'Right-skewed group count',
+    formulaMarkdown:
+      '$$\\text{count}=\\max\\!\\left(1,\\;\\left\\lceil U_1\\cdot U_2\\cdot N_{\\max}\\right\\rceil\\right)$$',
+    caption: 'Original Fruit Ninja feel',
+    noteMarkdown:
+      'Using $U_1\\cdot U_2$ keeps singles common and makes five-fruit bursts rare even late in the run.',
+  },
+];
+
+export const spawnMathDistribution: SpawnMathDistributionRow[] = [
+  { count: 1, probability: 53.7, ratio: '1 in 1.9 waves' },
+  { count: 2, probability: 24.8, ratio: '1 in 4.0 waves' },
+  { count: 3, probability: 13.1, ratio: '1 in 7.6 waves' },
+  { count: 4, probability: 6, ratio: '1 in 16.7 waves' },
+  { count: 5, probability: 2.4, ratio: '1 in 41.7 waves' },
+];
+
+export const spawnMathComparison: SpawnMathComparisonRow[] = [
+  { groupSize: 1, oldPerObject: '15.0%', newPerWave: '15.0%' },
+  { groupSize: 2, oldPerObject: '27.8%', newPerWave: '15.0%' },
+  { groupSize: 3, oldPerObject: '38.6%', newPerWave: '15.0%' },
+  { groupSize: 4, oldPerObject: '47.8%', newPerWave: '15.0%' },
+  { groupSize: 5, oldPerObject: '55.6%', newPerWave: '15.0%' },
+  { groupSize: 6, oldPerObject: '62.5%', newPerWave: '15.0%' },
+];
+
+export const spawnMathModeOverrides: SpawnMathModeOverride[] = [
+  {
+    mode: 'Arcade',
+    bombWindow: '0.10 → 0.15',
+    intervalWindow: '1600 → 600 ms',
+    note: 'Bombs stay threatening without overwhelming a timed scoring run.',
+  },
+  {
+    mode: 'Frenzy',
+    bombWindow: '0.10 → 0.15',
+    intervalWindow: '900 → 337.5 ms',
+    note: 'Faster spawn rate pairs with a lower cap so the screen remains readable.',
+  },
+  {
+    mode: 'Chaos',
+    bombWindow: '0.06 → 0.12',
+    intervalWindow: '600 → 150 ms',
+    note: 'Extreme wave speed is the challenge, not a bomb every second.',
+  },
+  {
+    mode: 'Zen',
+    bombWindow: '0.00 → 0.00',
+    intervalWindow: '1600 → 600 ms',
+    note: 'Bomb logic is fully removed so the mode stays pure rhythm and flow.',
+  },
+];
+
+export const spawnMathInsights: SpawnMathInsight[] = [
+  { label: 'Bomb cap at zero score', value: '100 waves' },
+  { label: 'Collision radius rule', value: 'display radius - 4 px' },
+  { label: 'Expected late-game group size', value: '~2.0 fruits' },
 ];
 
 function toTitleCase(value: string) {

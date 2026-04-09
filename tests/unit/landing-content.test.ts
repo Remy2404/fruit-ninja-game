@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { MODE_ORDER } from '../../game/config/ModeConfig';
-import { featureItems, heroStats, modeCards, navigationItems } from '../../lib/landing/content';
+import { featureItems, heroStats, modeCards, navigationItems, spawnMathFormulaCards } from '../../lib/landing/content';
 
 describe('landing content', () => {
   it('keeps game mode cards aligned with the actual game mode order', () => {
@@ -17,8 +17,15 @@ describe('landing content', () => {
   });
 
   it('keeps the landing sections intentionally constrained', () => {
-    expect(navigationItems).toHaveLength(5);
+    expect(navigationItems).toHaveLength(6);
     expect(featureItems).toHaveLength(6);
     expect(heroStats).toHaveLength(3);
+  });
+
+  it('stores spawn formulas as markdown-ready math content', () => {
+    for (const formulaCard of spawnMathFormulaCards) {
+      expect(formulaCard.formulaMarkdown.startsWith('$$')).toBe(true);
+      expect(formulaCard.noteMarkdown.length).toBeGreaterThan(0);
+    }
   });
 });

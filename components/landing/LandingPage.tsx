@@ -6,6 +6,7 @@ import { GameplayPreviewSection } from './GameplayPreviewSection';
 import { HeroSection } from './HeroSection';
 import { LeaderboardSection } from './LeaderboardSection';
 import { Navbar } from './Navbar';
+import { SpawnProbabilitySection } from './SpawnProbabilitySection';
 import { SlicingCursor } from './SlicingCursor';
 
 export function LandingPage() {
@@ -24,6 +25,7 @@ export function LandingPage() {
         <GameplayPreviewSection />
         <FeaturesSection />
         <GameModesSection />
+        <SpawnProbabilitySection />
         <LeaderboardSection />
         <CTASection />
       </main>
